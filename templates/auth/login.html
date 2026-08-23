@@ -4,7 +4,7 @@
   <h1>Welcome back</h1>
   <p class="muted">Sign in to continue recycling.</p>
   {% for message in messages %}
-  <p class="pill">{{ message }}</p>
+  {% if message.tags == 'error' %}<p class="pill">{{ message }}</p>{% endif %}
   {% endfor %}
   <form method="post">
     {% csrf_token %}

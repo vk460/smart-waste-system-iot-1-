@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 import uuid
 
@@ -79,6 +80,22 @@ class RewardRule(models.Model):
     maximum_grams = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     points = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True)
+
+
+class RecyclingPointConfig(models.Model):
+    config_key = models.PositiveSmallIntegerField(default=1)
+    grams_per_point = models.DecimalField(max_digits=8, decimal_places=2, default=1)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["config_key"], condition=Q(active=True), name="one_active_recycling_point_config"),
+        ]
+
+    def __str__(self):
+        return f"{self.grams_per_point} grams per point"
 
 
 class Redemption(models.Model):

@@ -52,29 +52,40 @@
 </div>
 <script>
   const sessionUrl = '{% url "api_session" session.session_id %}';
-  const steps = ['verified', 'measuring', 'processing', 'complete'];
+  let polling = false;
+
   function renderSession(data) {
     const state = data.session;
-    const status = state.status.toLowerCase();
-    const active = status === 'ready_for_deposit' || status === 'rfid_verified' ? 0 : status === 'measuring' ? 1 : status === 'processing' ? 2 : status === 'completed' ? 3 : 0;
+    const status = state.status;
+    const active = status === 'MEASURING' ? 1 : status === 'PROCESSING' ? 2 : status === 'COMPLETED' ? 3 : 0;
     document.querySelectorAll('[data-step]').forEach((item, index) => item.classList.toggle('current', index <= active));
     document.querySelector('#weight').textContent = state.weight + ' g';
     document.querySelector('#points').textContent = '+' + state.points;
-    if (state.status === 'COMPLETED') {
+    if (status === 'COMPLETED') {
       document.querySelector('#progress-title').textContent = 'Recycling complete';
       document.querySelector('#success-state').hidden = false;
       document.querySelector('#status').textContent = 'Your paper has been moved to the correct bin.';
       document.querySelector('#total').textContent = data.total_points || document.querySelector('#total').textContent;
-      return;
+      return true;
     }
-    document.querySelector('#status').textContent = state.status === 'PROCESSING' ? 'Processing and moving your paper to the bin...' : 'Card verified. Place your paper on the tray.';
-    setTimeout(refreshSession, 2500);
+    document.querySelector('#status').textContent = status === 'PROCESSING' ? 'Processing and moving your paper to the bin...' : status === 'MEASURING' ? 'Weight received. Preparing your paper...' : 'Card verified. Place your paper on the tray.';
+    return false;
   }
   async function refreshSession() {
-    const response = await fetch(sessionUrl);
-    if (response.ok) renderSession(await response.json());
+    if (polling) return;
+    polling = true;
+    try {
+      const response = await fetch(sessionUrl, {credentials: 'same-origin'});
+      if (response.ok) {
+        const completed = renderSession(await response.json());
+        if (!completed) setTimeout(() => { polling = false; refreshSession(); }, 2500);
+      } else {
+        setTimeout(() => { polling = false; refreshSession(); }, 1500);
+      }
+    } catch (error) {
+      setTimeout(() => { polling = false; refreshSession(); }, 1500);
+    }
   }
-  renderSession({session: {status: '{{ session.status }}', weight: {{ session.weight_grams }}, points: {{ session.points }}}});
   refreshSession();
 </script>
 {% endblock %}

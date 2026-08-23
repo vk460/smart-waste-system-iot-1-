@@ -11,10 +11,12 @@
         ><a href="{% url 'leaderboard' %}">♜ &nbsp; Leaderboard</a>
       </nav>
     </div>
-    <div class="promo">
-      🌱<br />Every wrapper you recycle makes a difference for our planet
+    <div class="sidebar-footer">
+      <div class="promo">
+        🌱<br />Every wrapper you recycle makes a difference for our planet
+      </div>
+      <a class="logout-button" href="{% url 'logout' %}" onclick="return confirm('Are you sure you want to logout?')">🚪 Logout</a>
     </div>
-    <a class="logout-button" href="{% url 'logout' %}" onclick="return confirm('Are you sure you want to logout?')">🚪 Logout</a>
   </aside>
   <div class="content">
     <header class="topbar">

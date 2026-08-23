@@ -1,7 +1,8 @@
 import json
+import logging
 import re
 import secrets
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -17,7 +18,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .models import Machine, MachineEvent, Notification, Profile, RFIDCard, RFIDRegistration, Redemption, RecyclingSession, Reward, RewardRule
+from .models import Machine, MachineEvent, Notification, Profile, RFIDCard, RFIDRegistration, Redemption, RecyclingPointConfig, RecyclingSession, Reward, RewardRule
 
 REWARD_IMAGE_CHOICES = [
     ("/static/images/eco-bottle.webp", "Eco bottle"),
@@ -27,6 +28,8 @@ REWARD_IMAGE_CHOICES = [
     ("/static/images/llifestyle -mug.jpg", "Lifestyle mug"),
     ("/static/images/stainless steel bottle.png", "Stainless steel bottle"),
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def json_body(request):
@@ -43,9 +46,16 @@ def normalize_phone(phone):
     return phone if re.fullmatch(r"[6-9]\d{9}", phone) else None
 
 
-def points_for_weight(weight):
-    rule = RewardRule.objects.filter(active=True, minimum_grams__lte=weight, maximum_grams__gte=weight).order_by("minimum_grams").first()
-    return rule.points if rule else int(weight // 10)
+def calculate_points(weight_grams):
+    weight = Decimal(str(weight_grams))
+    config = RecyclingPointConfig.objects.filter(active=True).order_by("-updated_at", "-id").first()
+    grams_per_point = config.grams_per_point if config else Decimal("1")
+    if grams_per_point <= 0 or weight <= 0:
+        return 0
+    return int(weight // grams_per_point)
+
+
+points_for_weight = calculate_points
 
 
 def notify(user, title, message, notification_type="RECYCLING"):
@@ -142,8 +152,9 @@ def leaderboard(request):
 
 @login_required
 def user_notifications_page(request):
-    notifications = Notification.objects.filter(user=request.user).order_by("-created_at")[:50]
-    return render(request, "user/notifications.html", {"notifications": notifications, "unread_count": notifications.filter(is_read=False).count()})
+    notification_queryset = Notification.objects.filter(user=request.user).order_by("-created_at")
+    notifications = notification_queryset[:50]
+    return render(request, "user/notifications.html", {"notifications": notifications, "unread_count": notification_queryset.filter(is_read=False).count()})
 
 
 @login_required
@@ -513,12 +524,30 @@ def admin_reports_page(request):
     paper = completed.aggregate(value=Sum("weight_grams"))["value"] or 0
     average_weight = completed.aggregate(value=Avg("weight_grams"))["value"] or 0
     today = timezone.localdate()
-    start_date = today - timedelta(days=29)
-    daily_data = list(completed.filter(completed_at__date__gte=start_date, completed_at__date__lte=today).annotate(day=TruncDate("completed_at")).values("day").annotate(weight=Sum("weight_grams")).order_by("day"))
+    first_completed = completed.filter(completed_at__isnull=False).order_by("completed_at").values_list("completed_at", flat=True).first()
+    first_month = timezone.localtime(first_completed).date().replace(day=1) if first_completed else today.replace(day=1)
+    requested_month = request.GET.get("month", "")
+    try:
+        selected_month = datetime.strptime(requested_month, "%Y-%m").date().replace(day=1) if requested_month else today.replace(day=1)
+    except ValueError:
+        selected_month = today.replace(day=1)
+    if selected_month < first_month or selected_month > today.replace(day=1):
+        selected_month = today.replace(day=1)
+    next_month = (selected_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    last_day = next_month - timedelta(days=1)
+    daily_data = list(completed.filter(completed_at__date__gte=selected_month, completed_at__date__lte=last_day).annotate(day=TruncDate("completed_at")).values("day").annotate(weight=Sum("weight_grams")).order_by("day"))
     daily_by_day = {item["day"]: item["weight"] for item in daily_data}
-    max_weight = max(daily_by_day.values(), default=0)
-    chart_data = [{"label": (start_date + timedelta(days=offset)).strftime("%d %b"), "value": daily_by_day.get(start_date + timedelta(days=offset), 0), "height": round(float(daily_by_day.get(start_date + timedelta(days=offset), 0)) / float(max_weight) * 100) if max_weight else 0} for offset in range(30)]
-    return render(request, "admin/reports.html", {"new_users": User.objects.filter(date_joined__date=timezone.localdate()).count(), "active_users": Profile.objects.filter(status="ACTIVE").count(), "rfid_users": Profile.objects.exclude(rfid_uid__isnull=True).exclude(rfid_uid="").count(), "paper": Decimal(paper) / 1000, "deposits": completed.count(), "rejected": RecyclingSession.objects.filter(status="REJECTED").count(), "redemptions": Redemption.objects.count(), "points": completed.aggregate(value=Sum("points"))["value"] or 0, "average_weight": average_weight, "chart_data": chart_data, "admin_section": "reports", "page_title": "Reports & analytics"})
+    chart_data = [{"date": selected_month.replace(day=day).isoformat(), "label": str(day), "grams": float(daily_by_day.get(selected_month.replace(day=day), 0) or 0)} for day in range(1, last_day.day + 1)]
+    available_months = []
+    cursor = today.replace(day=1)
+    while cursor >= first_month:
+        available_months.append({"value": cursor.strftime("%Y-%m"), "label": cursor.strftime("%B %Y")})
+        cursor = (cursor - timedelta(days=1)).replace(day=1)
+    logger.info("Admin report monthly paper dataset month=%s points=%s", selected_month.strftime("%Y-%m"), chart_data)
+    context = {"new_users": User.objects.filter(date_joined__date=timezone.localdate()).count(), "active_users": Profile.objects.filter(status="ACTIVE", role="USER").count(), "rfid_users": Profile.objects.exclude(rfid_uid__isnull=True).exclude(rfid_uid="").count(), "paper": Decimal(paper) / 1000, "deposits": completed.count(), "rejected": RecyclingSession.objects.filter(status="REJECTED").count(), "redemptions": Redemption.objects.count(), "points": completed.aggregate(value=Sum("points"))["value"] or 0, "average_weight": average_weight, "chart_data": chart_data, "selected_month": selected_month.strftime("%Y-%m"), "selected_month_label": selected_month.strftime("%B %Y"), "available_months": available_months, "admin_section": "reports", "page_title": "Reports & analytics"}
+    if request.headers.get("X-Chart-Request") == "true":
+        return JsonResponse({"month": context["selected_month_label"], "chart_data": chart_data})
+    return render(request, "admin/reports.html", context)
 
 
 @login_required
@@ -529,6 +558,15 @@ def admin_settings_page(request):
         request.user.first_name = request.POST.get("admin_name", "").strip()
         request.user.email = request.POST.get("admin_email", "").strip()
         request.user.save(update_fields=["first_name", "email"])
+        try:
+            grams_per_point = Decimal(request.POST.get("grams_per_point", "1"))
+        except (InvalidOperation, TypeError):
+            grams_per_point = Decimal("0")
+        if grams_per_point <= 0:
+            messages.error(request, "Weight required must be greater than 0 grams.")
+            return redirect("admin_settings_page")
+        RecyclingPointConfig.objects.update(active=False)
+        RecyclingPointConfig.objects.create(grams_per_point=grams_per_point, active=True)
         new_password = request.POST.get("new_password", "")
         confirmation = request.POST.get("password_confirmation", "")
         if new_password:
@@ -538,17 +576,10 @@ def admin_settings_page(request):
             request.user.set_password(new_password)
             request.user.save(update_fields=["password"])
             login(request, request.user)
-        for rule in RewardRule.objects.all():
-            value = request.POST.get(f"rule_{rule.id}")
-            if value is not None:
-                try:
-                    rule.points = max(0, int(value))
-                    rule.save(update_fields=["points"])
-                except ValueError:
-                    pass
         messages.success(request, "Settings saved successfully.")
         return redirect("admin_settings_page")
-    return render(request, "admin/settings.html", {"rules": RewardRule.objects.order_by("minimum_grams"), "admin_section": "settings", "page_title": "Settings"})
+    point_config = RecyclingPointConfig.objects.filter(active=True).order_by("-updated_at", "-id").first()
+    return render(request, "admin/settings.html", {"point_config": point_config, "admin_section": "settings", "page_title": "Settings"})
 
 
 @login_required
@@ -644,9 +675,13 @@ def rfid_scan(request):
         is_new_user = False
     if not card.is_active or profile.rfid_status == "BLOCKED" or profile.status == "BLOCKED" or not card.user.is_active:
         return JsonResponse({"success": False, "status": "RFID_REJECTED", "reason": "RFID_BLOCKED", "error": "RFID card or account is blocked"}, status=403)
-    session = RecyclingSession.objects.create(user=card.user, machine=machine, rfid_card=card, rfid_uid=uid, status="READY_FOR_DEPOSIT")
-    notify(profile.user, "Card verified", f"Machine {machine.code} is ready for your paper.")
-    return JsonResponse({**session_payload(session), "success": True, "event": "RFID_VERIFIED", "status": "registered_and_verified" if is_new_user else "verified", "is_new_user": is_new_user, "user": {"id": profile.user_id, "name": profile.user.get_full_name() or profile.user.username, "phone": profile.phone}, "message": "RFID verified. Recycling session started."})
+    active_statuses = ["READY_FOR_DEPOSIT", "MEASURING", "PROCESSING"]
+    session = RecyclingSession.objects.filter(user=card.user, machine=machine, rfid_uid=uid, status__in=active_statuses).order_by("-created_at").first()
+    if not session:
+        session = RecyclingSession.objects.create(user=card.user, machine=machine, rfid_card=card, rfid_uid=uid, status="READY_FOR_DEPOSIT")
+        notify(profile.user, "Card verified", f"Machine {machine.code} is ready for your paper.")
+    payload = session_payload(session)
+    return JsonResponse({"success": True, "event": "RFID_VERIFIED", "session_id": payload["session_id"], "user_id": payload["user_id"], "machine_id": payload["machine_id"], "machine_code": payload["machine_code"], "rfid_uid": payload["rfid_uid"], "status": payload["status"], "weight": payload["weight"], "points": payload["points"], "is_new_user": is_new_user, "user": {"id": profile.user_id, "name": profile.user.get_full_name() or profile.user.username, "phone": profile.phone}, "message": "RFID verified. Recycling session ready."})
 
 
 @csrf_exempt
@@ -672,7 +707,7 @@ def weight_received(request, machine_id=None):
         return JsonResponse({"success": False, "event": "REJECTED", "error": "Weight must be between 0 and 500 grams"}, status=422)
     session.weight_grams = weight
     session.points = points_for_weight(weight)
-    session.status = "PROCESSING"
+    session.status = "MEASURING"
     session.save(update_fields=["weight_grams", "points", "status"])
     return JsonResponse({"success": True, "event": "WEIGHT_MEASURED", **session_payload(session)})
 
@@ -685,8 +720,10 @@ def processing(request, machine_id=None):
         return error
     machine, data = result
     session = get_object_or_404(RecyclingSession, session_id=data.get("session_id"), machine=machine)
-    if session.status != "PROCESSING":
+    if session.status != "MEASURING":
         return JsonResponse({"success": False, "error": "Weight must be accepted before processing"}, status=409)
+    session.status = "PROCESSING"
+    session.save(update_fields=["status"])
     return JsonResponse({"success": True, "event": "PROCESSING", **session_payload(session)})
 
 
@@ -701,7 +738,7 @@ def session_complete(request, machine_id=None):
     if session.status == "COMPLETED":
         profile = session.user.profile
         return JsonResponse({"success": True, "event": "COMPLETED", **session_payload(session), "total_points": profile.points, "idempotent": True})
-    if session.status != "PROCESSING":
+    if session.status not in {"MEASURING", "PROCESSING"}:
         return JsonResponse({"success": False, "error": "Session is not ready to complete"}, status=409)
     session.status = "COMPLETED"
     session.completed_at = timezone.now()
@@ -792,7 +829,11 @@ def api_history(request, transaction_id=None):
 
 @login_required
 def api_session(request, session_id):
-    session = get_object_or_404(RecyclingSession, session_id=session_id, user=request.user)
+    session = RecyclingSession.objects.filter(session_id=session_id, user=request.user).first()
+    if not session:
+        exists = RecyclingSession.objects.filter(session_id=session_id).exists()
+        logger.warning("Session lookup failed: user_id=%s session_exists=%s", request.user.id, exists)
+        return JsonResponse({"error": "Session not found"}, status=404)
     return JsonResponse({"event": session.status, "session": session_payload(session), "total_points": request.user.profile.points})
 
 
@@ -971,8 +1012,24 @@ def api_start_recycling(request):
     if profile.status == "BLOCKED" or profile.rfid_status == "BLOCKED" or not profile.rfid_uid:
         return JsonResponse({"success": False, "error": "Register an active RFID card first"}, status=403)
     card = RFIDCard.objects.filter(user=request.user, uid=profile.rfid_uid, is_active=True).first()
-    session = RecyclingSession.objects.create(user=request.user, machine=machine, rfid_card=card, rfid_uid=profile.rfid_uid, status="READY_FOR_DEPOSIT")
-    return JsonResponse({"success": True, "event": "RFID_VERIFIED", **session_payload(session)}, status=201)
+    if not card:
+        return JsonResponse({"success": False, "error": "Register an active RFID card first"}, status=403)
+    request.session["recycling_machine_id"] = machine.id
+    request.session.modified = True
+    return JsonResponse({"success": True, "event": "WAITING_FOR_RFID", "machine_id": machine.id, "machine_code": machine.code, "message": "Please tap your RFID card on the machine."})
+
+
+@login_required
+def api_active_session(request):
+    session_filter = {"user": request.user, "status__in": ["READY_FOR_DEPOSIT", "MEASURING", "PROCESSING"]}
+    machine_id = request.session.get("recycling_machine_id")
+    if machine_id:
+        session_filter["machine_id"] = machine_id
+    session = RecyclingSession.objects.filter(**session_filter).select_related("machine", "rfid_card").order_by("-created_at").first()
+    if session:
+        request.session.pop("recycling_machine_id", None)
+        request.session.modified = True
+    return JsonResponse({"success": True, "session": session_payload(session) if session else None})
 
 
 @login_required

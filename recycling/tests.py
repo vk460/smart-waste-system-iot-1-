@@ -1,15 +1,18 @@
 import json
+from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.utils import timezone
 
-from .models import Machine, Profile, RFIDCard, RecyclingSession, RewardRule
+from .models import Machine, Notification, Profile, RFIDCard, RecyclingPointConfig, RecyclingSession, RewardRule
 
 
 class RFIDMachineFlowTests(TestCase):
     def setUp(self):
         self.machine = Machine.objects.create(code="MACHINE_TEST", api_key="test-key", status="ONLINE")
-        RewardRule.objects.create(minimum_grams=0, maximum_grams=500, points=60)
+        RecyclingPointConfig.objects.filter(active=True).update(active=False)
+        RecyclingPointConfig.objects.create(grams_per_point=1, active=True)
         self.client.defaults["CONTENT_TYPE"] = "application/json"
 
     def post_json(self, path, payload):
@@ -29,7 +32,8 @@ class RFIDMachineFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertFalse(body["is_new_user"])
-        self.assertEqual(body["status"], "verified")
+        self.assertEqual(body["event"], "RFID_VERIFIED")
+        self.assertEqual(body["status"], "READY_FOR_DEPOSIT")
         self.assertEqual(body["user"]["id"], user.id)
         self.assertEqual(RFIDCard.objects.count(), 1)
         self.assertEqual(RecyclingSession.objects.count(), 1)
@@ -43,7 +47,8 @@ class RFIDMachineFlowTests(TestCase):
         self.assertFalse(first.json()["is_new_user"])
         self.assertFalse(second.json()["is_new_user"])
         self.assertEqual(User.objects.count(), 1)
-        self.assertEqual(RecyclingSession.objects.count(), 2)
+        self.assertEqual(first.json()["session_id"], second.json()["session_id"])
+        self.assertEqual(RecyclingSession.objects.count(), 1)
 
     def test_weight_belongs_to_card_session_and_completion_is_idempotent(self):
         user = User.objects.create_user(username="asha@example.com", first_name="Asha Rao")
@@ -52,12 +57,104 @@ class RFIDMachineFlowTests(TestCase):
         session_id = scan.json()["session_id"]
         weight = self.post_json("/api/machines/weight/", self.machine_payload("weight_stable", {"weight_g": 50}, session_id=session_id))
         self.assertEqual(weight.json()["user_id"], scan.json()["user_id"])
-        self.assertEqual(weight.json()["points"], 60)
+        self.assertEqual(weight.json()["points"], 50)
         complete = self.post_json("/api/machines/session-complete/", self.machine_payload("deposit_completed", session_id=session_id))
         retry = self.post_json("/api/machines/session-complete/", self.machine_payload("deposit_completed", session_id=session_id))
         self.assertEqual(complete.status_code, 200)
         self.assertTrue(retry.json()["idempotent"])
-        self.assertEqual(Profile.objects.get(user_id=scan.json()["user_id"]).points, 60)
+        self.assertEqual(Profile.objects.get(user_id=scan.json()["user_id"]).points, 50)
+
+    def test_configured_point_ratio_uses_decimal_floor(self):
+        RecyclingPointConfig.objects.update(active=False)
+        RecyclingPointConfig.objects.create(grams_per_point="5.00", active=True)
+        user = User.objects.create_user(username="ratio@example.com")
+        Profile.objects.create(user=user, phone="9876543217", rfid_uid="A3F82C30")
+        RFIDCard.objects.create(user=user, uid="A3F82C30", card_id="RF010")
+        scan = self.post_json("/api/machines/rfid-scan/", self.machine_payload("rfid_detected", {"rfid_uid": "A3F82C30", "card_id": "RF010", "name": "Ratio User", "phone": "9876543217"}))
+
+        weight = self.post_json("/api/machines/weight/", self.machine_payload("weight_stable", {"weight_g": "18.00"}, session_id=scan.json()["session_id"]))
+
+        self.assertEqual(weight.status_code, 200)
+        self.assertEqual(weight.json()["points"], 3)
+
+    def test_exact_session_lifecycle_updates_authenticated_api(self):
+        user = User.objects.create_user(username="lifecycle@example.com")
+        Profile.objects.create(user=user, phone="9876543218", rfid_uid="A3F82C31")
+        RFIDCard.objects.create(user=user, uid="A3F82C31", card_id="RF011")
+        self.client.force_login(user)
+        start = self.client.post("/api/recycling/start/", data=json.dumps({"machine_id": self.machine.id}), content_type="application/json")
+        self.assertEqual(start.status_code, 200)
+        self.assertEqual(start.json()["event"], "WAITING_FOR_RFID")
+        self.assertEqual(RecyclingSession.objects.count(), 0)
+
+        scan = self.post_json("/api/machines/rfid-scan/", self.machine_payload("rfid_detected", {"rfid_uid": "A3F82C31", "card_id": "RF011", "name": "Lifecycle User", "phone": "9876543218"}))
+        session_id = scan.json()["session_id"]
+        self.assertEqual(RecyclingSession.objects.filter(user=user).count(), 1)
+        active = self.client.get("/api/recycling/active-session/")
+        self.assertEqual(active.status_code, 200)
+        self.assertEqual(active.json()["session"]["session_id"], session_id)
+
+        progress = self.client.get(f"/api/recycling/session/{session_id}/")
+        self.assertEqual(progress.status_code, 200)
+        self.assertEqual(progress.json()["session"]["session_id"], session_id)
+
+        weight = self.post_json("/api/machines/weight/", self.machine_payload("weight_stable", {"weight_g": 500}, session_id=session_id))
+        self.assertEqual(weight.json()["status"], "MEASURING")
+        processing = self.post_json("/api/machines/processing/", self.machine_payload("processing", session_id=session_id))
+        self.assertEqual(processing.json()["status"], "PROCESSING")
+        complete = self.post_json("/api/machines/session-complete/", self.machine_payload("deposit_completed", session_id=session_id))
+
+        self.assertEqual(complete.json()["status"], "COMPLETED")
+        self.assertEqual(complete.json()["weight"], 500.0)
+        self.assertEqual(complete.json()["points"], 500)
+        self.assertEqual(RecyclingSession.objects.get(session_id=session_id).points, 500)
+
+    def test_session_api_does_not_expose_another_users_session(self):
+        owner = User.objects.create_user(username="owner@example.com")
+        other_user = User.objects.create_user(username="other@example.com")
+        owner_profile = Profile.objects.create(user=owner, phone="9876543219", rfid_uid="A3F82C32")
+        card = RFIDCard.objects.create(user=owner, uid=owner_profile.rfid_uid, card_id="RF012")
+        session = RecyclingSession.objects.create(user=owner, machine=self.machine, rfid_card=card, rfid_uid=card.uid, status="COMPLETED", weight_grams=500, points=500)
+        self.client.force_login(other_user)
+
+        response = self.client.get(f"/api/recycling/session/{session.session_id}/")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_admin_point_config_saves_when_password_autofill_is_invalid(self):
+        admin = User.objects.create_user(username="admin@example.com", password="admin-password")
+        Profile.objects.create(user=admin, role="ADMIN")
+        self.client.force_login(admin)
+
+        response = self.client.post("/admin-panel/settings/", {
+            "admin_name": "Admin",
+            "admin_email": "admin@example.com",
+            "grams_per_point": "5",
+            "new_password": "autofilled-password",
+            "password_confirmation": "",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(RecyclingPointConfig.objects.get(active=True).grams_per_point, 5)
+
+    def test_admin_report_chart_has_real_distinct_month_values_and_zero_days(self):
+        admin = User.objects.create_user(username="chart-admin@example.com")
+        Profile.objects.create(user=admin, role="ADMIN")
+        user = User.objects.create_user(username="chart-user@example.com")
+        session_dates = [timezone.localdate() - timedelta(days=2), timezone.localdate() - timedelta(days=1), timezone.localdate()]
+        for session_date, weight in zip(session_dates, [50, 200, 0]):
+            session = RecyclingSession.objects.create(user=user, machine=self.machine, rfid_uid="CHART", status="COMPLETED", weight_grams=weight, points=0)
+            session.completed_at = timezone.make_aware(timezone.datetime.combine(session_date, timezone.datetime.min.time()))
+            session.save(update_fields=["completed_at"])
+        self.client.force_login(admin)
+
+        response = self.client.get("/admin-panel/reports/")
+        chart_data = response.context["chart_data"]
+        values_by_date = {point["date"]: point["grams"] for point in chart_data}
+
+        self.assertEqual(len(chart_data), 31)
+        self.assertEqual([values_by_date[session_date.isoformat()] for session_date in session_dates], [50.0, 200.0, 0.0])
+        self.assertEqual(sum(point["grams"] for point in chart_data), 250.0)
 
     def test_phone_conflict_does_not_create_second_user(self):
         response = self.post_json("/api/machines/rfid-scan/", self.machine_payload("rfid_detected", {"rfid_uid": "A3F82C23", "card_id": "RF005", "name": "Unknown User", "phone": "9876543213"}))
@@ -86,3 +183,17 @@ class RFIDMachineFlowTests(TestCase):
         scan = self.post_json("/api/machines/rfid-scan/", self.machine_payload("rfid_detected", {"rfid_uid": "A3F82C27", "card_id": "RF009", "name": "Wrong State", "phone": "9876543215"}))
         response = self.post_json("/api/machines/session-complete/", self.machine_payload("deposit_completed", session_id=scan.json()["session_id"]))
         self.assertEqual(response.status_code, 409)
+
+    def test_user_notifications_page_limits_display_and_counts_unread(self):
+        user = User.objects.create_user(username="notifications@example.com")
+        self.client.force_login(user)
+        Notification.objects.bulk_create([
+            Notification(user=user, title=f"Notification {index}", message="Message", is_read=index % 2 == 0)
+            for index in range(55)
+        ])
+
+        response = self.client.get("/notifications/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["notifications"]), 50)
+        self.assertEqual(response.context["unread_count"], 27)

@@ -70,10 +70,17 @@
   </div>
 </div>
 <script>
+  let activeSessionPolling = false;
+  let activeSessionTimer = null;
+
   async function scanCard() {
     const result = document.querySelector("#result");
     const machine = document.querySelector("#machine").value;
-    result.textContent = "Verifying your registered RFID...";
+    if (!machine) {
+      result.textContent = "✕ Select an online machine first.";
+      return;
+    }
+    result.textContent = "Waiting for RFID card...";
     const response = await fetch('{% url "api_start_recycling" %}', {
       method: "POST",
       credentials: "same-origin",
@@ -90,10 +97,26 @@
       result.textContent = "✕ " + data.error;
       return;
     }
-    window.location.href = '{% url "session_progress" "SESSION_ID" %}'.replace(
-      "SESSION_ID",
-      data.session_id,
-    );
+    result.textContent = data.message;
+    pollActiveSession();
+  }
+
+  async function pollActiveSession() {
+    if (activeSessionPolling) return;
+    activeSessionPolling = true;
+    try {
+      const response = await fetch('{% url "api_active_session" %}', {credentials: "same-origin"});
+      if (response.ok) {
+        const data = await response.json();
+        if (data.session) {
+          window.location.href = '{% url "session_progress" "SESSION_ID" %}'.replace("SESSION_ID", data.session.session_id);
+          return;
+        }
+      }
+    } finally {
+      activeSessionPolling = false;
+      activeSessionTimer = setTimeout(pollActiveSession, 1500);
+    }
   }
 </script>
 {% endblock %}

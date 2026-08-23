@@ -47,6 +47,7 @@ urlpatterns = [
         path("api/user/goals/", views.api_goals, name="api_goals"),
         path("api/user/achievements/", views.api_achievements, name="api_achievements"),
         path("api/recycling/start/", views.api_start_recycling, name="api_start_recycling"),
+        path("api/recycling/active-session/", views.api_active_session, name="api_active_session"),
         path("api/recycling/history/", views.api_history, name="api_history"),
         path("api/recycling/history/<int:transaction_id>/", views.api_history, name="api_history_detail"),
         path("api/recycling/session/<str:session_id>/", views.api_session, name="api_session"),

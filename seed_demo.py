@@ -3,7 +3,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE','ecoreward.settings')
 import django
 django.setup()
 from django.contrib.auth.models import User
-from recycling.models import Profile, Machine, Reward, RewardRule
+from recycling.models import Profile, Machine, RecyclingPointConfig, Reward
 user, created = User.objects.get_or_create(username='prajwal', defaults={'first_name':'Prajwal','email':'prajwal@example.com'})
 if created: user.set_password('ecoreward123'); user.save()
 Profile.objects.get_or_create(user=user, defaults={'rfid_uid':'A3:B7:91:24','points':156})
@@ -22,6 +22,5 @@ demo_rewards = [
 for name, description, category, points, stock, image_url in demo_rewards:
 	Reward.objects.get_or_create(name=name, defaults={'description':description,'category':category,'image_url':image_url,'points_required':points,'stock':stock})
 Reward.objects.get_or_create(name='₹50 Green Coupon', defaults={'description':'A little reward for a big planet.','category':'Lifestyle','points_required':250,'stock':50})
-for minimum, maximum, points in [(0, 9.99, 0), (10, 19.99, 2), (20, 29.99, 3), (30, 49.99, 5), (50, 99.99, 10), (100, 500, 20)]:
-	RewardRule.objects.get_or_create(minimum_grams=minimum, maximum_grams=maximum, defaults={'points':points})
+RecyclingPointConfig.objects.get_or_create(grams_per_point=1, active=True)
 print('Demo data ready: prajwal/ecoreward123 and admin/admin123')

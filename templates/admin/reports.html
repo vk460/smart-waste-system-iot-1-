@@ -1,8 +1,449 @@
 {% extends 'admin/base.html' %}
+
 {% block admin_content %}
-<div class="page-heading"><div><p class="eyebrow">DEEP ANALYTICS</p><h1>Reports & analytics</h1><p>Compare users, recycling, machines, and rewards over time.</p></div><div class="button-row"><button class="btn secondary" type="button" onclick="window.print()">Export PDF</button><button class="btn" type="button" onclick="downloadReport()">Export CSV</button></div></div>
-<section class="report-filter panel"><select class="field"><option>Daily</option><option>Weekly</option><option>Monthly</option></select><input class="field" type="date" value="2026-08-01"><span>to</span><input class="field" type="date" value="2026-08-20"></section>
-<div class="report-grid"><section class="panel report-card"><p class="eyebrow">USER STATISTICS</p><h2>{{ new_users }}</h2><span class="muted">New users today</span><div class="report-list"><span>Active users <b>{{ active_users }}</b></span><span>RFID registered <b>{{ rfid_users }}</b></span></div></section><section class="panel report-card"><p class="eyebrow">RECYCLING STATISTICS</p><h2>{{ paper|floatformat:1 }} kg</h2><span class="muted">Total paper collected</span><div class="report-list"><span>Accepted deposits <b>{{ deposits }}</b></span><span>Rejected deposits <b>{{ rejected }}</b></span></div></section><section class="panel report-card"><p class="eyebrow">REWARD STATISTICS</p><h2>{{ points }}</h2><span class="muted">Points issued</span><div class="report-list"><span>Redemptions <b>{{ redemptions }}</b></span><span>Average weight <b>{{ average_weight|floatformat:1 }} g</b></span></div></section></div>
-<section class="panel admin-panel report-chart"><div class="panel-heading"><h2>Paper collected over time</h2><span class="muted">Last 30 days</span></div><div class="report-bars">{% for point in chart_data %}<div class="report-bar-item"><i style="height: {{ point.height }}%" title="{{ point.value }} g"></i><small>{{ point.label }}</small></div>{% endfor %}</div></section>
-<script>function downloadReport(){const rows=['Metric,Value','New users,{{ new_users }}','Active users,{{ active_users }}','Paper collected,{{ paper }}','Deposits,{{ deposits }}','Rejected,{{ rejected }}','Points,{{ points }}'];const blob=new Blob([rows.join('\n')],{type:'text/csv'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='ecoreward-report.csv';link.click();}</script>
+
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">DEEP ANALYTICS</p>
+        <h1>Reports &amp; analytics</h1>
+        <p>Compare users, recycling, machines, and rewards over time.</p>
+    </div>
+    <div class="button-row">
+        <button class="btn secondary" type="button" onclick="window.print()">Export PDF</button>
+        <button class="btn" type="button" onclick="downloadReport()">Export CSV</button>
+    </div>
+</div>
+
+<section class="report-filter panel">
+    <select class="field">
+        <option>Daily</option>
+        <option>Weekly</option>
+        <option>Monthly</option>
+    </select>
+    <input class="field" type="date" value="2026-08-01">
+    <span>to</span>
+    <input class="field" type="date" value="2026-08-20">
+</section>
+
+<div class="report-grid">
+
+    <section class="panel report-card">
+        <p class="eyebrow">USER STATISTICS</p>
+        <h2>{{ new_users }}</h2>
+        <span class="muted">New users today</span>
+        <div class="report-list">
+            <span>Active users <b>{{ active_users }}</b></span>
+            <span>RFID registered <b>{{ rfid_users }}</b></span>
+        </div>
+    </section>
+
+    <section class="panel report-card">
+        <p class="eyebrow">RECYCLING STATISTICS</p>
+        <h2>{{ paper|floatformat:1 }} kg</h2>
+        <span class="muted">Total paper collected</span>
+        <div class="report-list">
+            <span>Accepted deposits <b>{{ deposits }}</b></span>
+            <span>Rejected deposits <b>{{ rejected }}</b></span>
+        </div>
+    </section>
+
+    <section class="panel report-card">
+        <p class="eyebrow">REWARD STATISTICS</p>
+        <h2>{{ points }}</h2>
+        <span class="muted">Points issued</span>
+        <div class="report-list">
+            <span>Redemptions <b>{{ redemptions }}</b></span>
+            <span>Average weight <b>{{ average_weight|floatformat:1 }} g</b></span>
+        </div>
+    </section>
+
+</div>
+
+<section class="panel admin-panel report-chart">
+
+    <div class="panel-heading report-chart-heading">
+        <div>
+            <h2>Paper collected over time</h2>
+            <span class="muted">Daily paper collection</span>
+        </div>
+
+        <div class="report-chart-controls">
+            <label class="sr-only" for="report-month">Select report month</label>
+            <select id="report-month" class="field">
+                <option value="{{ selected_month }}">{{ selected_month_label }}</option>
+                {% for month in available_months %}
+                    {% if month.value != selected_month %}
+                        <option value="{{ month.value }}">{{ month.label }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="report-summary">
+        <span>Total: <b id="chart-total">0.00 kg</b></span>
+        <span>Average: <b id="chart-average">0.00 kg/day</b></span>
+    </div>
+
+    <div id="report-chart-empty" class="report-chart-empty" hidden>
+        No paper collected in this month
+    </div>
+
+    <div class="report-chart-wrap" id="report-chart-wrap">
+
+        <div class="report-y-axis" aria-hidden="true">
+            <span id="chart-y-max">0.00 kg</span>
+            <span id="chart-y-mid">0.00 kg</span>
+            <span id="chart-y-min">0.00 kg</span>
+        </div>
+
+        <div class="report-chart-plot">
+
+            <svg
+                id="report-line-chart"
+                viewBox="0 0 900 320"
+                preserveAspectRatio="none"
+                role="img"
+                aria-label="Paper collected in kilograms for the selected month"
+            >
+                <defs>
+                    <linearGradient id="report-area-fill" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#2e8b57" stop-opacity=".28"/>
+                        <stop offset="100%" stop-color="#2e8b57" stop-opacity=".03"/>
+                    </linearGradient>
+                </defs>
+
+                <path id="report-area" fill="url(#report-area-fill)" d=""></path>
+
+                <path
+                    id="report-line"
+                    fill="none"
+                    stroke="#2e8b57"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d=""
+                ></path>
+
+                <g id="report-points"></g>
+            </svg>
+
+            <div id="report-tooltip" class="report-tooltip" role="status" hidden></div>
+            <div id="report-x-axis" class="report-x-axis"></div>
+
+        </div>
+    </div>
+</section>
+
+{{ chart_data|json_script:"report-chart-data" }}
+
+<script>
+    let reportPoints = JSON.parse(
+        document.getElementById("report-chart-data").textContent
+    );
+
+    const reportArea = document.getElementById("report-area");
+    const reportLine = document.getElementById("report-line");
+    const reportPointGroup = document.getElementById("report-points");
+    const reportTooltip = document.getElementById("report-tooltip");
+    const reportXAxis = document.getElementById("report-x-axis");
+    const chartTotal = document.getElementById("chart-total");
+    const chartAverage = document.getElementById("chart-average");
+    const chartEmpty = document.getElementById("report-chart-empty");
+    const chartWrap = document.getElementById("report-chart-wrap");
+
+    const plotWidth = 900;
+    const plotHeight = 320;
+
+    const padding = {
+        top: 20,
+        right: 18,
+        bottom: 40,
+        left: 8
+    };
+
+    const innerWidth =
+        plotWidth - padding.left - padding.right;
+
+    const innerHeight =
+        plotHeight - padding.top - padding.bottom;
+
+    function formatKg(value) {
+        if (!Number.isFinite(value)) return "0.00";
+        return value.toFixed(2);
+    }
+
+    function renderReportChart() {
+        if (!Array.isArray(reportPoints)) {
+            reportPoints = [];
+        }
+
+        const kilograms = reportPoints.map(
+            point => Number(point.grams || 0) / 1000
+        );
+
+        const maxKilograms = kilograms.length
+            ? Math.max(...kilograms, 0)
+            : 0;
+
+        let chartMax;
+
+        if (maxKilograms > 0) {
+            chartMax =
+                Math.ceil(maxKilograms * 1.20 * 100) / 100;
+
+            if (chartMax <= maxKilograms) {
+                chartMax = maxKilograms + 0.01;
+            }
+        } else {
+            chartMax = 0.10;
+        }
+
+        const xFor = index =>
+            padding.left +
+            innerWidth *
+                index /
+                Math.max(reportPoints.length - 1, 1);
+
+        const yFor = value =>
+            padding.top +
+            innerHeight -
+            (value / chartMax) * innerHeight;
+
+        const baseline = yFor(0);
+
+        const points = reportPoints.map(
+            (point, index) =>
+                `${xFor(index)},${yFor(kilograms[index])}`
+        );
+
+        const totalKilograms = kilograms.reduce(
+            (total, value) => total + value,
+            0
+        );
+
+        const averageKilograms = kilograms.length
+            ? totalKilograms / kilograms.length
+            : 0;
+
+        chartTotal.textContent =
+            `${formatKg(totalKilograms)} kg`;
+
+        chartAverage.textContent =
+            `${formatKg(averageKilograms)} kg/day`;
+
+        document.getElementById("chart-y-max").textContent =
+            `${formatKg(chartMax)} kg`;
+
+        document.getElementById("chart-y-mid").textContent =
+            `${formatKg(chartMax / 2)} kg`;
+
+        document.getElementById("chart-y-min").textContent =
+            "0.00 kg";
+
+        reportPointGroup.replaceChildren();
+        reportXAxis.replaceChildren();
+
+        const isEmpty = maxKilograms === 0;
+
+        chartEmpty.hidden = !isEmpty;
+        chartWrap.hidden = isEmpty;
+
+        if (isEmpty) {
+            reportLine.setAttribute("d", "");
+            reportArea.setAttribute("d", "");
+            return;
+        }
+
+        reportLine.setAttribute(
+            "d",
+            points.length ? `M ${points.join(" L ")}` : ""
+        );
+
+        reportArea.setAttribute(
+            "d",
+            points.length
+                ? `
+                    M ${points[0]}
+                    L ${points.slice(1).join(" L ")}
+                    L ${xFor(reportPoints.length - 1)},${baseline}
+                    L ${xFor(0)},${baseline}
+                    Z
+                `
+                : ""
+        );
+
+        reportPoints.forEach((point, index) => {
+            const value = kilograms[index];
+
+            if (value <= 0) {
+                return;
+            }
+
+            const circle = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle"
+            );
+
+            circle.setAttribute("cx", xFor(index));
+            circle.setAttribute("cy", yFor(value));
+            circle.setAttribute("r", "4");
+            circle.setAttribute("class", "report-point");
+            circle.setAttribute("tabindex", "0");
+
+            circle.setAttribute(
+                "aria-label",
+                `${point.date}: ${formatKg(value)} kilograms`
+            );
+
+            const showTooltip = () => {
+                const date = new Date(
+                    `${point.date}T00:00:00`
+                );
+
+                reportTooltip.hidden = false;
+
+                reportTooltip.textContent =
+                    `${date.toLocaleDateString(
+                        undefined,
+                        {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric"
+                        }
+                    )} • Paper collected: ${formatKg(value)} kg`;
+
+                let leftPercent =
+                    (xFor(index) / plotWidth) * 100;
+
+                let topPercent =
+                    (yFor(value) / plotHeight) * 100;
+
+                leftPercent = Math.min(
+                    92,
+                    Math.max(8, leftPercent)
+                );
+
+                topPercent = Math.max(8, topPercent);
+
+                reportTooltip.style.left =
+                    `${leftPercent}%`;
+
+                reportTooltip.style.top =
+                    `${topPercent}%`;
+            };
+
+            circle.addEventListener("mouseenter", showTooltip);
+            circle.addEventListener("focus", showTooltip);
+
+            circle.addEventListener(
+                "mouseleave",
+                () => {
+                    reportTooltip.hidden = true;
+                }
+            );
+
+            circle.addEventListener(
+                "blur",
+                () => {
+                    reportTooltip.hidden = true;
+                }
+            );
+
+            reportPointGroup.appendChild(circle);
+        });
+
+        const count = reportPoints.length;
+
+        if (count > 0) {
+            reportPoints.forEach((point, index) => {
+                const date = new Date(`${point.date}T00:00:00`);
+                const label = document.createElement("span");
+                label.textContent = date.getDate();
+                label.style.left = `${(xFor(index) / plotWidth) * 100}%`;
+                reportXAxis.appendChild(label);
+            });
+        }
+    }
+
+    renderReportChart();
+
+    document
+        .getElementById("report-month")
+        .addEventListener("change", async event => {
+            try {
+                const response = await fetch(
+                    `?month=${encodeURIComponent(event.target.value)}`,
+                    {
+                        headers: {
+                            "X-Chart-Request": "true"
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const data = await response.json();
+
+                reportPoints =
+                    Array.isArray(data.chart_data)
+                        ? data.chart_data
+                        : [];
+
+                renderReportChart();
+
+            } catch (error) {
+                console.error(
+                    "Failed to load report chart:",
+                    error
+                );
+            }
+        });
+
+    let resizeTimer;
+
+    window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+
+        resizeTimer = setTimeout(
+            renderReportChart,
+            150
+        );
+    });
+</script>
+
+<script>
+    function downloadReport() {
+        const rows = [
+            "Metric,Value",
+            "New users,{{ new_users }}",
+            "Active users,{{ active_users }}",
+            "Paper collected,{{ paper }}",
+            "Deposits,{{ deposits }}",
+            "Rejected,{{ rejected }}",
+            "Points,{{ points }}"
+        ];
+
+        const blob = new Blob(
+            [rows.join("\n")],
+            { type: "text/csv" }
+        );
+
+        const link =
+            document.createElement("a");
+
+        link.href =
+            URL.createObjectURL(blob);
+
+        link.download =
+            "ecoreward-report.csv";
+
+        link.click();
+
+        URL.revokeObjectURL(link.href);
+    }
+</script>
+
 {% endblock %}
