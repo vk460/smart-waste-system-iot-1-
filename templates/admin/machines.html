@@ -1,0 +1,25 @@
+{% extends 'admin/base.html' %}
+{% block admin_content %}
+<div class="page-heading"><div><p class="eyebrow">HARDWARE NETWORK</p><h1>Machines</h1><p>Monitor connectivity, sensors, and bin capacity.</p></div><a class="btn" href="{% url 'api_admin_machines' %}">Machines API</a></div>
+<section class="stats admin-stats"><div class="card stat"><strong>{{ total }}</strong><span class="muted">Total machines</span></div><div class="card stat"><strong>{{ online }}</strong><span class="muted">Online</span></div><div class="card stat"><strong>{{ offline }}</strong><span class="muted">Offline</span></div><div class="card stat"><strong>{{ maintenance }}</strong><span class="muted">Maintenance</span></div></section>
+<section class="machine-card-grid">
+	{% for machine in machines %}
+	<article class="panel machine-admin-card">
+		<div class="machine-card-head">
+			<div class="machine-icon">🤖</div>
+			<span class="pill">{{ machine.status|title }}</span>
+		</div>
+		<h2>{{ machine.code }}</h2>
+		<p class="muted">{{ machine.location }}</p>
+		<progress class="bin-meter" value="{{ machine.bin_level }}" max="100">{{ machine.bin_level }}%</progress>
+		<div class="machine-card-meta">
+			<span>Bin level <b>{{ machine.bin_level }}%</b></span>
+			<span>Last seen <b>{{ machine.last_seen|date:'h:i A' }}</b></span>
+		</div>
+		<a class="detail" href="{% url 'admin_machine_detail_page' machine.id %}">View details →</a>
+	</article>
+	{% empty %}
+	<p class="muted">No machines registered.</p>
+	{% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block body %}
+<div class="public-home">
+  <nav class="public-nav">
+    <a class="public-brand" href="{% url 'dashboard' %}"><span class="brand-mark">🌿</span><span><strong>EcoReward</strong><small>Recycle Today, Reward Tomorrow</small></span></a>
+    <div class="public-actions">
+      <a class="btn secondary" href="{% url 'login' %}">♙ &nbsp; Login</a>
+      <a class="btn" href="{% url 'register' %}">♟ &nbsp; Sign Up</a>
+    </div>
+  </nav>
+  <main id="home" class="home-hero">
+    <div class="home-copy">
+      <span class="home-kicker">Smart Paper Waste Reward Machine</span>
+      <h1>Recycle Paper.<br /><em>Earn Rewards.</em></h1>
+      <p>EcoReward encourages you to recycle paper waste by rewarding you with points. Together, let's build a cleaner and greener tomorrow.</p>
+      <div class="public-actions">
+        <a class="btn" href="{% url 'register' %}">♻ &nbsp; Recycle Now</a>
+        <a class="btn secondary" href="#how-it-works">Learn More &nbsp; ⓘ</a>
+      </div>
+      <div class="home-stats"><div><strong>🌿 {{ home_paper_kg|floatformat:0 }} kg</strong><span>Paper Recycled</span></div><div><strong>♧ {{ home_users }}</strong><span>Active Users</span></div><div><strong>🎁 {{ home_redemptions }}</strong><span>Rewards Redeemed</span></div><div><strong>♧ {{ home_trees }}</strong><span>Trees Saved</span></div></div>
+    </div>
+    <div class="home-machine"><img src="{% static 'images/ecoreward-machine.png' %}" alt="EcoReward paper recycling machine" onerror="this.style.display='none'" /><div class="machine-fallback">♻</div></div>
+  </main>
+  <section id="about" class="home-features">
+    <div class="home-section-title"><h2>Why Choose EcoReward?</h2><span></span></div>
+    <div class="home-feature-grid"><article><div>♻</div><h3>Recycle Paper</h3><p>Deposit your paper waste in the smart machine.</p></article><article><div>🎁</div><h3>Earn Points</h3><p>Earn points based on the weight of paper recycled.</p></article><article><div>🎁</div><h3>Get Rewards</h3><p>Redeem your points for exciting rewards and offers.</p></article><article><div>🌎</div><h3>Save Environment</h3><p>Reduce waste, save trees and protect our planet.</p></article><article><div>🏆</div><h3>Be a Leader</h3><p>Compete with others and top the leaderboard.</p></article></div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'base.html' %}{% block body %}
+<div class="shell">
+  <aside class="sidebar">
+    <div>
+      <div class="brand"><span>🌿 Eco</span>Reward</div>
+      <nav class="nav">
+        <a href="{% url 'dashboard' %}">⌂ &nbsp; Dashboard</a
+        ><a href="{% url 'recycle' %}">♻ &nbsp; Recycle Now</a
+        ><a href="{% url 'rewards' %}">🎁 &nbsp; Rewards</a
+        ><a href="{% url 'history' %}">◷ &nbsp; History</a
+        ><a class="active" href="{% url 'leaderboard' %}"
+          >♜ &nbsp; Leaderboard</a
+        >
+      </nav>
+    </div>
+  </aside>
+  <div class="content">
+    <header class="topbar"><b>Leaderboard</b></header>
+    <main class="main">
+      <section class="panel">
+        <h1>Top eco recyclers</h1>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Recycler</th>
+              <th>Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for profile in users %}
+            <tr>
+              <td>#{{ forloop.counter }}</td>
+              <td>
+                <b>{{ profile.user.get_full_name|default:profile.user.username }}</b>
+              </td>
+              <td><span class="pill">{{ profile.points }} pts</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</div>
+{% endblock %}

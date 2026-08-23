@@ -1,0 +1,33 @@
+{% extends 'base.html' %} {% block body %}
+<main class="mobile-app">
+  <header class="mobile-header">
+    <a class="brand" href="{% url 'mobile_dashboard' %}"
+      ><span>🌿 Eco</span>Reward</a
+    >
+    <span class="avatar">{{ request.user.username|first|upper }}</span>
+  </header>
+  <section class="mobile-greeting">
+    <p class="eyebrow">YOUR ECO WALLET</p>
+    <h1>Hello, {{ request.user.first_name|default:request.user.username }}!</h1>
+    <p class="muted">Small actions, measurable change.</p>
+  </section>
+  <section class="mobile-points">
+    <span>Reward points</span>
+    <strong>{{ profile.points }}</strong>
+    <a href="{% url 'mobile_recycle' %}"
+      >Recycle now <span aria-hidden="true">→</span></a
+    >
+  </section>
+  <section class="mobile-stat-grid">
+    <div><strong>1.42 kg</strong><span>Recycled</span></div>
+    <div><strong>48</strong><span>Deposits</span></div>
+    <div><strong>2.1 kg</strong><span>CO₂ saved</span></div>
+  </section>
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <a class="active" href="{% url 'mobile_dashboard' %}">⌂<span>Home</span></a>
+    <a href="{% url 'mobile_recycle' %}">♻<span>Recycle</span></a>
+    <a href="{% url 'history' %}">◷<span>History</span></a>
+    <a href="{% url 'rewards' %}">🎁<span>Rewards</span></a>
+  </nav>
+</main>
+{% endblock %}

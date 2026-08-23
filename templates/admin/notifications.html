@@ -1,0 +1,5 @@
+{% extends 'admin/base.html' %}
+{% block admin_content %}
+<div class="page-heading"><div><p class="eyebrow">SYSTEM ALERTS</p><h1>Notifications</h1><p>Machine and platform events that need admin attention.</p></div><span class="pill">{{ unread }} recent events</span></div>
+<section class="panel admin-panel notification-panel">{% for event in events %}<article class="notification-item"><span class="alert-symbol">{% if event.event_type == 'BIN_ALMOST_FULL' %}🟡{% elif event.event_type == 'REQUEST' %}🟢{% else %}⚠️{% endif %}</span><div><h2>{{ event.event_type|title }}</h2><p>{{ event.machine.code }} · {{ event.machine.location }}</p><time>{{ event.created_at|date:'d M Y, h:i A' }}</time></div><a class="detail" href="{% url 'admin_machine_detail_page' event.machine.id %}">Review →</a></article>{% empty %}<div class="empty-state">No notifications yet.</div>{% endfor %}</section>
+{% endblock %}

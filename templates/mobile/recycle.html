@@ -1,0 +1,73 @@
+{% extends 'base.html' %} {% block body %}
+<main class="mobile-app">
+  <header class="mobile-header">
+    <a href="{% url 'mobile_dashboard' %}" aria-label="Back">‹</a>
+    <b>Recycle Now</b>
+    <span class="avatar">{{ request.user.username|first|upper }}</span>
+  </header>
+  <section class="mobile-recycle-copy">
+    <p class="eyebrow">MACHINE #01</p>
+    <h1>Tap your RFID card</h1>
+    <p class="muted">Start a secure recycling session from your phone.</p>
+  </section>
+  <section class="mobile-machine-card">
+    <div class="machine-illustration">♻</div>
+    <p class="machine-ready"><span class="status-dot"></span> Ready</p>
+    <label for="mobile-machine">Machine</label>
+    <select id="mobile-machine" class="field">
+      {% for machine in machines %}
+          <option value="{{ machine.id }}">
+        {{ machine.code }} · {{ machine.location }}
+      </option>
+      {% empty %}
+      <option value="">No machines online</option>
+      {% endfor %}
+    </select>
+    <label for="mobile-rfid">RFID card UID</label>
+    <input
+      id="mobile-rfid"
+      class="field"
+      value="{{ profile.rfid_uid|default:'' }}"
+      readonly
+    />
+    <button class="btn" type="button" onclick="scanMobileCard()">
+      Verify RFID card
+    </button>
+    <p id="mobile-result" class="form-result" role="status"></p>
+  </section>
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <a href="{% url 'mobile_dashboard' %}">⌂<span>Home</span></a>
+    <a class="active" href="{% url 'mobile_recycle' %}"
+      >♻<span>Recycle</span></a
+    >
+    <a href="{% url 'history' %}">◷<span>History</span></a>
+    <a href="{% url 'rewards' %}">🎁<span>Rewards</span></a>
+  </nav>
+</main>
+<script>
+  async function scanMobileCard() {
+    const result = document.querySelector("#mobile-result");
+    result.textContent = "Verifying your registered RFID...";
+    const response = await fetch('{% url "api_start_recycling" %}', {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+      body: JSON.stringify({
+        machine_id: document.querySelector("#mobile-machine").value,
+      }),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      result.textContent = "✕ " + data.error;
+      return;
+    }
+    window.location.href = '{% url "session_progress" "SESSION_ID" %}'.replace(
+      "SESSION_ID",
+      data.session_id,
+    );
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %} {% block body %}
+<div class="form card auth-card">
+  <div class="brand"><span>🌿 Eco</span>Reward</div>
+  <p class="eyebrow">JOIN THE COMMUNITY</p>
+  <h1>Create your account</h1>
+  <p class="muted">
+    Track your impact, earn points, and redeem greener rewards.
+  </p>
+  {% for message in messages %}
+  <p class="pill">{{ message }}</p>
+  {% endfor %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="field-group">
+      <label for="name">Full name</label>
+      <input
+        id="name"
+        name="name"
+        type="text"
+        required
+        autocomplete="name"
+        placeholder="Prajwal Sharma"
+      />
+    </div>
+    <div class="field-group">
+      <label for="email">Email address</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        required
+        autocomplete="email"
+        placeholder="you@example.com"
+      />
+    </div>
+    <div class="field-group">
+      <label for="phone">Phone number</label>
+      <input
+        id="phone"
+        name="phone"
+        type="tel"
+        required
+        autocomplete="tel"
+        pattern="(\+91[\s-]?)?[6-9][0-9]{9}"
+        title="Enter a valid 10-digit Indian mobile number, with optional +91."
+        placeholder="+91 98765 43210"
+      />
+    </div>
+    <div class="field-group">
+      <label for="password">Password</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        required
+        minlength="8"
+        autocomplete="new-password"
+        placeholder="At least 8 characters"
+      />
+    </div>
+    <div class="field-group">
+      <label for="confirmation">Confirm password</label>
+      <input
+        id="confirmation"
+        name="confirmation"
+        type="password"
+        required
+        minlength="8"
+        autocomplete="new-password"
+        placeholder="Repeat your password"
+      />
+    </div>
+    <button class="btn" type="submit">Create account</button>
+  </form>
+  <p class="auth-link muted">
+    Already have an account? <a href="{% url 'login' %}">Sign in</a>
+  </p>
+</div>
+{% endblock %}

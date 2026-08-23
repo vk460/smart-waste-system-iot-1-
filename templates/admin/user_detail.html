@@ -1,0 +1,48 @@
+{% extends 'admin/base.html' %}
+{% block admin_content %}
+<a class="back-link" href="{% url 'admin_users_page' %}">← Back to users</a><div class="page-heading"><div><p class="eyebrow">USER PROFILE</p><h1>{{ profile.user.get_full_name|default:profile.user.username }}</h1><p>{{ profile.user.email }}</p></div><span class="pill">Account: {{ profile.status|title }} ●</span></div>
+<section class="detail-grid"><div class="panel settings-card"><p class="eyebrow">ACCOUNT</p><div class="detail-row"><span>Account created</span><b>{{ profile.user.date_joined|date:'d M Y' }}</b></div><div class="detail-row"><span>Role</span><b>{{ profile.role|title }}</b></div><div class="rfid-link-card"><div class="rfid-link-head"><div><p class="eyebrow">RFID CARD</p><h2 id="rfid-status-title">{% if profile.rfid_uid %}Linked{% else %}Not linked{% endif %}</h2></div><span id="rfid-status-pill" class="pill">{% if profile.rfid_uid %}🟢 Linked{% else %}⚪ Not linked{% endif %}</span></div><p id="rfid-status-message" class="muted">{% if profile.rfid_uid %}{{ profile.rfid_uid }}{% else %}Ask the user to tap their card on the selected machine.{% endif %}</p><button id="start-rfid-button" class="btn secondary" type="button" onclick="startRFIDRegistration()">{% if profile.rfid_uid %}Replace RFID card{% else %}Tap RFID card on machine{% endif %}</button><div id="rfid-waiting" class="rfid-waiting" hidden><span class="status-dot"></span><span>Waiting for RFID tap on <b id="rfid-machine"></b>...</span></div></div><form class="manual-rfid-form" method="post"><input type="hidden" name="action" value="manual_rfid">{% csrf_token %}<label>Manual RFID fallback<input class="field" name="rfid_uid" value="{{ profile.rfid_uid|default:'' }}" placeholder="A3:B7:91:24"></label><button class="btn secondary" type="submit">Save manually</button></form></div><div class="panel settings-card"><p class="eyebrow">RECYCLING SUMMARY</p><div class="detail-stat-grid"><div><strong>{{ total_weight|floatformat:2 }} kg</strong><span>Total weight</span></div><div><strong>{{ sessions|length }}</strong><span>Deposits</span></div><div><strong>{{ profile.points }}</strong><span>Points</span></div><div><strong>{{ redemptions }}</strong><span>Rewards redeemed</span></div></div></div></section>
+<section class="panel admin-panel"><div class="panel-heading"><h2>Recycling history</h2></div><div class="admin-table-wrap"><table class="table admin-table"><thead><tr><th>Date</th><th>Machine</th><th>Weight</th><th>Points</th><th>Status</th></tr></thead><tbody>{% for session in sessions %}<tr><td>{{ session.created_at|date:'d M Y, h:i A' }}</td><td>{{ session.machine.code }}</td><td>{{ session.weight_grams }} g</td><td>+{{ session.points }}</td><td><span class="pill">{{ session.status|title }}</span></td></tr>{% empty %}<tr><td colspan="5">No history yet.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel admin-panel"><div class="panel-heading"><h2>Achievements</h2></div><div class="achievement-list"><span>🏅 First Recycler</span><span>🌱 Eco Starter</span><span>♻️ 1 KG Recycled</span></div></section>
+<script>
+	let rfidPollTimer;
+	async function startRFIDRegistration() {
+		const button = document.querySelector('#start-rfid-button');
+		const message = document.querySelector('#rfid-status-message');
+		const waiting = document.querySelector('#rfid-waiting');
+		button.disabled = true;
+		message.textContent = 'Preparing a secure RFID registration session...';
+		const response = await fetch('{% url "start_rfid_registration" profile.user_id %}', {
+			method: 'POST',
+			headers: {'X-CSRFToken': '{{ csrf_token }}'}
+		});
+		const data = await response.json();
+		if (!response.ok) {
+			message.textContent = data.error || 'Could not start RFID registration.';
+			button.disabled = false;
+			return;
+		}
+		document.querySelector('#rfid-machine').textContent = data.machine_code;
+		waiting.hidden = false;
+		message.textContent = 'Tap the RFID card on the machine reader now.';
+		pollRFIDRegistration(data.registration_id);
+	}
+	function pollRFIDRegistration(registrationId) {
+		clearTimeout(rfidPollTimer);
+		rfidPollTimer = setTimeout(async () => {
+			const response = await fetch('{% url "rfid_registration_status" "REGISTRATION_ID" %}'.replace('REGISTRATION_ID', registrationId));
+			const data = await response.json();
+			if (data.status === 'LINKED') {
+				document.querySelector('#rfid-status-title').textContent = 'Linked';
+				document.querySelector('#rfid-status-pill').textContent = '🟢 Linked';
+				document.querySelector('#rfid-status-message').textContent = data.rfid_uid + ' is now linked to this user.';
+				document.querySelector('#rfid-waiting').hidden = true;
+				document.querySelector('#start-rfid-button').disabled = false;
+				document.querySelector('#start-rfid-button').textContent = 'Replace RFID card';
+				return;
+			}
+			pollRFIDRegistration(registrationId);
+		}, 1500);
+	}
+</script>
+{% endblock %}

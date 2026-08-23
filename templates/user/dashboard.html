@@ -1,0 +1,169 @@
+{% extends 'base.html' %} {% block body %}
+<div class="shell">
+  <aside class="sidebar">
+    <div>
+      <div class="brand"><span>🌿 Eco</span>Reward</div>
+      <nav class="nav">
+        <a class="active" href="{% url 'dashboard' %}">⌂ &nbsp; Dashboard</a
+        ><a href="{% url 'recycle' %}">♻ &nbsp; Recycle Now</a
+        ><a href="{% url 'rewards' %}">🎁 &nbsp; Rewards</a
+        ><a href="{% url 'history' %}">◷ &nbsp; History</a
+        ><a href="{% url 'leaderboard' %}">♜ &nbsp; Leaderboard</a>
+      </nav>
+    </div>
+    <div class="promo">
+      🌱<br />Every wrapper you recycle makes a difference for our planet
+    </div>
+    <a class="logout-button" href="{% url 'logout' %}" onclick="return confirm('Are you sure you want to logout?')">🚪 Logout</a>
+  </aside>
+  <div class="content">
+    <header class="topbar">
+      <nav class="topnav">
+        <a class="active" href="{% url 'dashboard' %}">Dashboard</a
+        ><a href="{% url 'recycle' %}">Recycle</a
+        ><a href="{% url 'rewards' %}">Rewards</a
+        ><a href="{% url 'history' %}">History</a
+        ><a href="{% url 'leaderboard' %}">Leaderboard</a>
+      </nav>
+      <div class="user">
+        <a class="notification-link" href="{% url 'user_notifications' %}" aria-label="View notifications">🔔{% if notifications %}<span class="notification-badge">{{ notifications|length }}</span>{% endif %}</a> <a class="profile-shortcut" href="{% url 'profile' %}"><span class="avatar">{{ request.user.username|first|upper }}</span>{{ request.user.first_name|default:request.user.username }}</a>
+        <a href="{% url 'logout' %}">↪</a>
+      </div>
+    </header>
+    <main class="main">
+      <section class="hero">
+        <div class="hero-copy">
+          <h1>
+            Welcome back, {{ request.user.first_name|default:request.user.username }}! 👋
+          </h1>
+          <p>Let's recycle more and earn more rewards.</p>
+        </div>
+        <div class="earth" aria-label="Eco Earth illustration"></div>
+      </section>
+      <section class="stats">
+        <div class="card stat">
+          <div class="stat-top">
+            <div class="icon">★</div>
+            <div>
+              <strong>{{ profile.points }}</strong
+              ><span class="muted">Reward Points</span>
+            </div>
+          </div>
+          <a class="detail" href="{% url 'rewards' %}">View details →</a>
+        </div>
+        <div class="card stat">
+          <div class="stat-top">
+            <div class="icon green">♻</div>
+            <div>
+              <strong>{{ total_weight|floatformat:2 }} <small>kg</small></strong
+              ><span class="muted">Paper Recycled</span>
+            </div>
+          </div>
+          <a class="detail" href="{% url 'history' %}">View details →</a>
+        </div>
+        <div class="card stat">
+          <div class="stat-top">
+            <div class="icon">▣</div>
+            <div>
+              <strong>{{ deposits }}</strong
+              ><span class="muted">Total Deposits</span>
+            </div>
+          </div>
+          <a class="detail" href="{% url 'history' %}">View details →</a>
+        </div>
+        <div class="card stat">
+          <div class="stat-top">
+            <div class="icon green">⌁</div>
+            <div>
+              <strong>{{ co2_saved|floatformat:1 }} <small>kg</small></strong
+              ><span class="muted">CO₂ Saved</span>
+            </div>
+          </div>
+          <a class="detail" href="#">View details →</a>
+        </div>
+      </section>
+      <div class="grid">
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Recycling Overview <span class="muted">(kg)</span></h2>
+            <select
+              class="period-select"
+              aria-label="Choose chart period"
+              onchange="updatePeriod(this.value)"
+            >
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+          </div>
+          <div class="chart" id="recycling-chart">
+            <div class="bar" style="height: 30%">
+              <div class="bar-label">Mon</div>
+            </div>
+            <div class="bar" style="height: 60%">
+              <div class="bar-label">Tue</div>
+            </div>
+            <div class="bar" style="height: 35%">
+              <div class="bar-label">Wed</div>
+            </div>
+            <div class="bar" style="height: 90%">
+              <div class="bar-label">Thu</div>
+            </div>
+            <div class="bar" style="height: 45%">
+              <div class="bar-label">Fri</div>
+            </div>
+            <div class="bar" style="height: 20%">
+              <div class="bar-label">Sat</div>
+            </div>
+            <div class="bar" style="height: 25%">
+              <div class="bar-label">Sun</div>
+            </div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Recent Activity</h2>
+            <a class="detail" href="{% url 'history' %}">View All</a>
+          </div>
+          <div class="activity">
+            {% for session in sessions %}
+            <div class="activity-row">
+              <span class="check">✓</span
+              ><b>{{ session.weight_grams }} g<br /><span class="muted">{{ session.created_at|date:'d M, h:i A' }}</span></b><span class="points">+{{ session.points }}</span>
+            </div>
+            {% empty %}
+            <p class="muted">Your recycling activity will appear here.</p>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+      <section class="panel dashboard-notifications">
+        <div class="panel-heading"><h2>Notifications</h2><a class="detail" href="{% url 'user_notifications' %}">View all</a></div>
+        {% for notification in notifications %}
+        <article class="notification-row {% if not notification.is_read %}unread{% endif %}" data-notification-id="{{ notification.id }}"><div><strong>{{ notification.title }}</strong><p>{{ notification.message }}</p><small class="muted">{{ notification.created_at|date:'d M Y, h:i A' }}</small></div>{% if not notification.is_read %}<button class="detail notification-read" type="button">Mark read</button>{% endif %}</article>
+        {% empty %}<p class="muted">You have no notifications.</p>{% endfor %}
+      </section>
+    </main>
+  </div>
+</div>
+<script>
+  function updatePeriod(period) {
+    const chart = document.getElementById("recycling-chart");
+    const values =
+      period === "month"
+        ? [42, 70, 48, 82, 55, 34, 61]
+        : [30, 60, 35, 90, 45, 20, 25];
+    chart.querySelectorAll(".bar").forEach((bar, index) => {
+      bar.style.height = values[index] + "%";
+    });
+  }
+</script>
+<script>
+document.querySelectorAll('.notification-read').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const row = button.closest('[data-notification-id]');
+    const response = await fetch(`/api/notifications/${row.dataset.notificationId}/read/`, {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}});
+    if (response.ok) { row.classList.remove('unread'); button.remove(); }
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'base.html' %} {% block body %}
+<div class="shell">
+  <aside class="sidebar">
+    <div>
+      <div class="brand"><span>🌿 Eco</span>Reward</div>
+      <nav class="nav">
+        <a href="{% url 'dashboard' %}">⌂ &nbsp; Dashboard</a>
+        <a class="active" href="{% url 'recycle' %}">♻ &nbsp; Recycle Now</a>
+        <a href="{% url 'rewards' %}">🎁 &nbsp; Rewards</a>
+        <a href="{% url 'history' %}">◷ &nbsp; History</a>
+        <a href="{% url 'leaderboard' %}">♜ &nbsp; Leaderboard</a>
+      </nav>
+    </div>
+  </aside>
+  <div class="content">
+    <header class="topbar">
+      <b>Session in Progress</b>
+      <a href="{% url 'dashboard' %}">Dashboard</a>
+    </header>
+    <main class="main progress-layout">
+      <section class="panel progress-card">
+        <p class="eyebrow">
+          {{ session.machine.code }} · SESSION {{ session.session_id }}
+        </p>
+        <h1 id="progress-title">Your recycling session</h1>
+        <div class="stepper" id="stepper">
+          <div data-step="verified"><span>✓</span><b>Card Verified</b></div>
+          <div data-step="measuring"><span>2</span><b>Measuring</b></div>
+          <div data-step="processing"><span>3</span><b>Processing</b></div>
+          <div data-step="complete"><span>4</span><b>Complete</b></div>
+        </div>
+        <div id="success-state" class="success-state" hidden>
+          <div class="success-mark">✓</div>
+          <h2>Recycling Successful!</h2>
+          <p class="muted">Thanks for helping the planet.</p>
+        </div>
+        <div class="result-metrics">
+          <div><strong id="weight">0 g</strong><span>Weight</span></div>
+          <div><strong id="points">+0</strong><span>Points Earned</span></div>
+          <div>
+            <strong id="total">{{ request.user.profile.points }}</strong
+            ><span>Total Points</span>
+          </div>
+        </div>
+        <p id="status" class="progress-status">
+          Card verified. Place your paper on the tray.
+        </p>
+        <a class="btn" href="{% url 'recycle' %}">Recycle Again</a>
+      </section>
+    </main>
+  </div>
+</div>
+<script>
+  const sessionUrl = '{% url "api_session" session.session_id %}';
+  const steps = ['verified', 'measuring', 'processing', 'complete'];
+  function renderSession(data) {
+    const state = data.session;
+    const status = state.status.toLowerCase();
+    const active = status === 'ready_for_deposit' || status === 'rfid_verified' ? 0 : status === 'measuring' ? 1 : status === 'processing' ? 2 : status === 'completed' ? 3 : 0;
+    document.querySelectorAll('[data-step]').forEach((item, index) => item.classList.toggle('current', index <= active));
+    document.querySelector('#weight').textContent = state.weight + ' g';
+    document.querySelector('#points').textContent = '+' + state.points;
+    if (state.status === 'COMPLETED') {
+      document.querySelector('#progress-title').textContent = 'Recycling complete';
+      document.querySelector('#success-state').hidden = false;
+      document.querySelector('#status').textContent = 'Your paper has been moved to the correct bin.';
+      document.querySelector('#total').textContent = data.total_points || document.querySelector('#total').textContent;
+      return;
+    }
+    document.querySelector('#status').textContent = state.status === 'PROCESSING' ? 'Processing and moving your paper to the bin...' : 'Card verified. Place your paper on the tray.';
+    setTimeout(refreshSession, 2500);
+  }
+  async function refreshSession() {
+    const response = await fetch(sessionUrl);
+    if (response.ok) renderSession(await response.json());
+  }
+  renderSession({session: {status: '{{ session.status }}', weight: {{ session.weight_grams }}, points: {{ session.points }}}});
+  refreshSession();
+</script>
+{% endblock %}

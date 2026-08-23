@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="shell">
+  <aside class="sidebar">
+    <div>
+      <div class="brand"><span>🌿 Eco</span>Reward</div>
+      <nav class="nav">
+        <a href="{% url 'dashboard' %}">⌂ &nbsp; Dashboard</a>
+        <a href="{% url 'recycle' %}">♻ &nbsp; Recycle Now</a>
+        <a href="{% url 'rewards' %}">🎁 &nbsp; Rewards</a>
+        <a href="{% url 'history' %}">◷ &nbsp; History</a>
+        <a href="{% url 'leaderboard' %}">♜ &nbsp; Leaderboard</a>
+        <a class="active" href="{% url 'profile' %}">👤 &nbsp; Profile</a>
+      </nav>
+    </div>
+  </aside>
+  <div class="content">
+    <header class="topbar">
+      <a class="back-link" href="{% url 'dashboard' %}">← Profile</a>
+      <div class="user"><span class="avatar">{{ request.user.username|first|upper }}</span>{{ request.user.first_name|default:request.user.username }}</div>
+    </header>
+    <main class="main profile-main">
+      {% for message in messages %}
+      <p class="profile-message">{{ message }}</p>
+      {% endfor %}
+      <section class="profile-header panel">
+        <div class="profile-avatar">{{ request.user.username|first|upper }}</div>
+        <h1>{{ request.user.get_full_name|default:request.user.username }}</h1>
+        <p>Eco Recycler 🌱</p>
+        <span class="muted">Member since {{ member_since|date:'M Y' }}</span>
+        <button class="btn secondary" type="button" onclick="document.querySelector('#edit-profile').showModal()">Edit Profile</button>
+      </section>
+      <div class="profile-grid">
+        <section class="panel profile-card">
+          <p class="eyebrow">PERSONAL INFORMATION</p>
+          <h2>Account details</h2>
+          <div class="profile-details">
+            <div><span>Full name</span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong></div>
+            <div><span>Email</span><strong>{{ request.user.email|default:'Not added' }}</strong></div>
+            <div><span>Phone number</span><strong>{{ profile.phone|default:'Not added' }}</strong></div>
+            <div><span>Date joined</span><strong>{{ member_since|date:'d F Y' }}</strong></div>
+          </div>
+        </section>
+        <section class="panel profile-card">
+          <p class="eyebrow">♻️ RECYCLING SUMMARY</p>
+          <h2>Your impact</h2>
+          <div class="profile-stat-grid">
+            <div><strong>{{ total_weight|floatformat:2 }} kg</strong><span>Paper recycled</span></div>
+            <div><strong>{{ sessions_count }}</strong><span>Deposits</span></div>
+            <div><strong>{{ profile.points }}</strong><span>Points</span></div>
+            <div><strong>{{ co2_saved|floatformat:1 }} kg</strong><span>CO₂ saved</span></div>
+          </div>
+        </section>
+      </div>
+      <section class="panel profile-card security-card">
+        <div class="section-heading"><div><p class="eyebrow">🔐 ACCOUNT & SECURITY</p><h2>Keep your account protected</h2></div><span class="pill">🟢 Active</span></div>
+        <div class="security-row"><span>Password</span><strong>••••••••</strong><button class="detail" type="button" onclick="document.querySelector('#change-password').showModal()">Change password</button></div>
+        <div class="security-row"><span>Email verification</span><strong class="good">✓ Verified</strong></div>
+        <div class="security-row"><span>Account status</span><strong class="good">🟢 {{ profile.status|title }}</strong></div>
+      </section>
+      <div class="profile-grid">
+        <section class="panel profile-card">
+          <div class="section-heading"><div><p class="eyebrow">💳 RFID CARD</p><h2>Machine access</h2></div><span class="pill">{% if profile.rfid_uid %}🟢 Active{% else %}⚪ Not linked{% endif %}</span></div>
+          <div class="rfid-user-card"><span>RFID CARD</span><strong>{% if rfid_card %}{{ rfid_card.card_id|default:'Card linked' }}{% else %}No card linked{% endif %}</strong><small>{% if profile.rfid_uid %}UID: {{ rfid_card.uid|default:profile.rfid_uid }}{% else %}Ask an admin to register your card{% endif %}</small></div>
+          <p class="good">{% if profile.rfid_uid %}✓ Linked machine access available{% else %}Machine access unavailable{% endif %}</p>
+          {% if profile.rfid_uid %}<form method="post" onsubmit="return confirm('Report this RFID card as lost?')"><input type="hidden" name="action" value="lost_rfid"><button class="link-button danger" type="submit">Report Lost Card</button></form>{% endif %}
+        </section>
+        <section class="panel profile-card">
+          <div class="section-heading"><div><p class="eyebrow">🎯 MONTHLY GOAL</p><h2>Recycling goal</h2></div><a class="detail" href="{% url 'history' %}">View analytics →</a></div>
+          <div class="goal-number"><strong>{{ total_weight|floatformat:2 }} kg</strong><span>/ {{ profile.monthly_goal_kg|floatformat:0 }} kg</span></div>
+          <div class="goal-meter"><span style="width: {{ goal_progress }}%"></span></div>
+          <p class="muted">{{ goal_progress }}% complete · {{ goal_remaining|floatformat:2 }} kg more to reach your goal.</p>
+        </section>
+      </div>
+      <section class="panel profile-card">
+        <div class="section-heading"><div><p class="eyebrow">🏆 ACHIEVEMENTS</p><h2>Your milestones</h2></div></div>
+        <div class="achievement-list profile-achievements"><span>🏅<b>First Recycler</b><small>✓ Unlocked</small></span><span>♻️<b>1 KG Recycled</b><small>{% if total_weight >= 1 %}✓ Unlocked{% else %}🔒 Locked{% endif %}</small></span><span>🌱<b>Eco Starter</b><small>✓ Unlocked</small></span><span>⭐<b>1000 Points</b><small>{% if profile.points >= 1000 %}✓ Unlocked{% else %}🔒 Locked{% endif %}</small></span></div>
+      </section>
+      <section class="panel profile-card preferences-card">
+        <p class="eyebrow">🔔 NOTIFICATION PREFERENCES</p>
+        <h2>Stay informed</h2>
+        <div class="preference-list"><label><span>Recycling successful</span><input type="checkbox" checked></label><label><span>Points earned</span><input type="checkbox" checked></label><label><span>Reward unlocked</span><input type="checkbox" checked></label><label><span>Achievement unlocked</span><input type="checkbox" checked></label><label><span>Goal reached</span><input type="checkbox" checked></label><label><span>Machine unavailable</span><input type="checkbox" checked></label></div>
+      </section>
+      <div class="profile-logout"><a class="danger" href="{% url 'logout' %}" onclick="return confirm('Are you sure you want to logout?')">🚪 Logout</a></div>
+    </main>
+  </div>
+</div>
+<dialog id="edit-profile" class="profile-dialog"><form method="post"><input type="hidden" name="action" value="profile"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><h2>Edit Profile</h2><label>Full name<input class="field" name="name" value="{{ request.user.get_full_name|default:request.user.username }}" required></label><label>Email<input class="field" type="email" name="email" value="{{ request.user.email }}" required></label><div class="dialog-actions"><button class="btn secondary" type="button" onclick="this.closest('dialog').close()">Cancel</button><button class="btn" type="submit">Save Changes</button></div></form></dialog>
+<dialog id="change-password" class="profile-dialog"><form method="post"><input type="hidden" name="action" value="password"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><h2>Change Password</h2><label>New password<input class="field" type="password" name="password" minlength="8" required></label><label>Confirm password<input class="field" type="password" name="confirmation" minlength="8" required></label><div class="dialog-actions"><button class="btn secondary" type="button" onclick="this.closest('dialog').close()">Cancel</button><button class="btn" type="submit">Save Changes</button></div></form></dialog>
+{% endblock %}

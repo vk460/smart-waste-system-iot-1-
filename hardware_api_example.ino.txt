@@ -1,0 +1,115 @@
+// EcoReward ESP8266 machine integration.
+// Libraries: ESP8266WiFi, ESP8266HTTPClient, ArduinoJson, MFRC522, HX711,
+// Servo, and LiquidCrystal_I2C.
+
+#include <ArduinoJson.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266WiFi.h>
+#include <HX711.h>
+#include <LiquidCrystal_I2C.h>
+#include <MFRC522.h>
+#include <Servo.h>
+
+const char *WIFI_SSID = "YOUR_WIFI";
+const char *WIFI_PASSWORD = "YOUR_PASSWORD";
+const char *API_BASE = "http://192.168.1.100:8000";
+const char *DEVICE_ID = "MACHINE_001";
+const char *MACHINE_API_KEY = "CHANGE_THIS_MACHINE_KEY";
+
+#define SS_PIN D8
+#define RST_PIN D0
+#define HX711_DOUT D5
+#define HX711_SCK D6
+#define SERVO_PIN D4
+#define BUZZER_PIN D3
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+HX711 scale;
+Servo gateServo;
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+String activeSessionId;
+unsigned long lastHeartbeat = 0;
+unsigned long eventCounter = 0;
+
+String nextEventId() { return String(DEVICE_ID) + "-" + String(millis()) + "-" + String(++eventCounter); }
+
+void showMessage(const String &line1, const String &line2) {
+	lcd.clear(); lcd.setCursor(0, 0); lcd.print(line1.substring(0, 16));
+	lcd.setCursor(0, 1); lcd.print(line2.substring(0, 16));
+}
+
+bool postEvent(const char *path, const char *eventName, JsonObject data, JsonDocument &response) {
+	if (WiFi.status() != WL_CONNECTED) return false;
+	WiFiClient client; HTTPClient http;
+	if (!http.begin(client, String(API_BASE) + path)) return false;
+	http.addHeader("Content-Type", "application/json");
+	StaticJsonDocument<768> request;
+	request["device_id"] = DEVICE_ID; request["api_key"] = MACHINE_API_KEY;
+	request["event"] = eventName; request["event_id"] = nextEventId();
+	if (activeSessionId.length()) request["session_id"] = activeSessionId;
+	request["timestamp"] = millis(); request["data"] = data;
+	String body; serializeJson(request, body);
+	int status = http.POST(body); bool ok = status >= 200 && status < 300;
+	if (ok) deserializeJson(response, http.getString());
+	http.end(); return ok;
+}
+
+String readMifareText(byte block) {
+	MFRC522::MIFARE_Key key; for (byte i = 0; i < 6; i++) key.keyByte[i] = 0xFF;
+	byte buffer[18]; byte size = sizeof(buffer);
+	if (rfid.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &rfid.uid) != MFRC522::STATUS_OK) return "";
+	if (rfid.MIFARE_Read(block, buffer, &size) != MFRC522::STATUS_OK) return "";
+	buffer[16] = 0; return String((char *)buffer);
+}
+
+bool scanCard(String &uid, String &cardId, String &name, String &phone) {
+	if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return false;
+	uid = "";
+	for (byte i = 0; i < rfid.uid.size; i++) { if (rfid.uid.uidByte[i] < 0x10) uid += "0"; uid += String(rfid.uid.uidByte[i], HEX); }
+	uid.toUpperCase();
+	// MIFARE data blocks: 4 = card_id, 5 = name, 7 = phone.
+	cardId = readMifareText(4); name = readMifareText(5); phone = readMifareText(7);
+	rfid.PICC_HaltA(); rfid.PCD_StopCrypto1();
+	return cardId.length() && name.length() && phone.length();
+}
+
+bool startRecycling() {
+	String uid, cardId, name, phone; if (!scanCard(uid, cardId, name, phone)) return false;
+	StaticJsonDocument<256> card; card["rfid_uid"] = uid; card["card_id"] = cardId;
+	card["name"] = name; card["phone"] = phone;
+	StaticJsonDocument<768> response;
+	if (!postEvent("/api/machines/rfid-scan/", "rfid_detected", card.as<JsonObject>(), response)) { showMessage("RFID rejected", "Try again"); return false; }
+	activeSessionId = response["session_id"].as<String>();
+	showMessage("Welcome", response["user"]["name"].as<String>()); delay(1500);
+	showMessage("Place Paper", "Waste now"); return true;
+}
+
+void completeDeposit() {
+	StaticJsonDocument<64> data; StaticJsonDocument<256> response;
+	if (postEvent("/api/machines/session-complete/", "deposit_completed", data.as<JsonObject>(), response)) showMessage("Deposit complete", "Thank you");
+	else showMessage("Completion error", "Keep card ready");
+	activeSessionId = ""; delay(1500);
+}
+
+void measureAndDeposit() {
+	delay(1200); float weight = scale.get_units(8);
+	if (weight <= 0 || weight > 500) { showMessage("Invalid weight", "Try again"); activeSessionId = ""; delay(1200); return; }
+	StaticJsonDocument<96> data; data["weight_g"] = weight; StaticJsonDocument<768> response;
+	if (!postEvent("/api/machines/weight/", "weight_stable", data.as<JsonObject>(), response)) { showMessage("Weight rejected", "Try again"); activeSessionId = ""; delay(1200); return; }
+	gateServo.write(120); delay(900); gateServo.write(0); completeDeposit();
+}
+
+void sendHeartbeat() { StaticJsonDocument<64> data; data["bin_level"] = 40; StaticJsonDocument<256> response; postEvent("/api/machines/heartbeat/", "heartbeat", data.as<JsonObject>(), response); }
+
+void setup() {
+	Serial.begin(115200); SPI.begin(); rfid.PCD_Init(); scale.begin(HX711_DOUT, HX711_SCK); scale.set_scale(2280.0f); scale.tare();
+	gateServo.attach(SERVO_PIN); gateServo.write(0); lcd.init(); lcd.backlight(); WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+	showMessage("Connecting", "WiFi..."); while (WiFi.status() != WL_CONNECTED) delay(300); showMessage("Tap RFID Card", "to begin");
+}
+
+void loop() {
+	if (millis() - lastHeartbeat > 20000) { sendHeartbeat(); lastHeartbeat = millis(); }
+	if (!activeSessionId.length() && startRecycling()) return;
+	if (activeSessionId.length()) measureAndDeposit();
+	showMessage("Tap RFID Card", "to begin"); delay(250);
+}

@@ -1,0 +1,114 @@
+.auth-card {
+  max-width: 520px;
+  padding: 38px 40px;
+}
+
+.auth-card h1 {
+  margin: 10px 0 8px;
+  font-size: 32px;
+  line-height: 1.15;
+}
+
+.auth-card form {
+  display: grid;
+  gap: 15px;
+  margin-top: 24px;
+}
+
+.field-group {
+  display: grid;
+  gap: 7px;
+}
+
+.field-group label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field-group input {
+  width: 100%;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field-group input:focus {
+  outline: 0;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px #2e8b5720;
+}
+
+.auth-card form .btn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.auth-link {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+.auth-link a {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.auth-signup-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  min-height: 48px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: var(--green);
+  color: #fff !important;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.admin-user-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 210px;
+}
+
+.admin-user-status form {
+  margin: 0;
+}
+
+.admin-user-status select.field {
+  width: auto;
+  min-width: 92px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+.admin-table td form {
+  margin: 0;
+}
+
+.admin-table td form .field {
+  width: auto;
+  min-width: 132px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .auth-card {
+    margin: 24px 16px;
+    padding: 28px 22px;
+  }
+
+  .auth-card h1 {
+    font-size: 27px;
+  }
+}

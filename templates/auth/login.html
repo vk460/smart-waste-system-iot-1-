@@ -1,0 +1,31 @@
+{% extends 'base.html' %}{% block body %}
+<div class="form card">
+  <div class="brand"><span>🌿 Eco</span>Reward</div>
+  <h1>Welcome back</h1>
+  <p class="muted">Sign in to continue recycling.</p>
+  {% for message in messages %}
+  <p class="pill">{{ message }}</p>
+  {% endfor %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label>Email</label
+      ><input
+        name="email"
+        type="text"
+        required
+        placeholder="prajwal@example.com"
+      />
+    </div>
+    <div class="field">
+      <label>Password</label
+      ><input name="password" type="password" required placeholder="••••••••" />
+    </div>
+    <button class="btn" type="submit">Sign in</button>
+  </form>
+  <p class="auth-link">
+    <a class="auth-signup-button" href="{% url 'register' %}">Sign up</a>
+  </p>
+  <p class="muted">Demo user: <b>prajwal</b> / <b>ecoreward123</b></p>
+</div>
+{% endblock %}

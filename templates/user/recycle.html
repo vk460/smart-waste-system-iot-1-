@@ -1,0 +1,99 @@
+{% extends 'base.html' %} {% block body %}
+<div class="shell">
+  <aside class="sidebar">
+    <div>
+      <div class="brand"><span>🌿 Eco</span>Reward</div>
+      <nav class="nav">
+        <a href="{% url 'dashboard' %}">⌂ &nbsp; Dashboard</a>
+        <a class="active" href="{% url 'recycle' %}">♻ &nbsp; Recycle Now</a>
+        <a href="{% url 'rewards' %}">🎁 &nbsp; Rewards</a>
+        <a href="{% url 'history' %}">◷ &nbsp; History</a>
+        <a href="{% url 'leaderboard' %}">♜ &nbsp; Leaderboard</a>
+      </nav>
+    </div>
+  </aside>
+  <div class="content">
+    <header class="topbar">
+      <b>Recycle Now</b>
+      <div class="user">
+        <span class="avatar">{{ request.user.username|first|upper }}</span>
+        {{ request.user.username }}
+      </div>
+    </header>
+    <main class="main recycle-layout">
+      <section class="panel recycle-panel">
+        <p class="eyebrow">MACHINE WORKFLOW</p>
+        <h1>Tap your RFID card</h1>
+        <p class="muted">
+          Choose a ready machine, then use your registered card to unlock the
+          tray.
+        </p>
+        <div class="machine-illustration" aria-hidden="true">♻</div>
+        <label for="machine">Machine</label>
+        <select id="machine" class="field">
+          {% for machine in machines %}
+          <option value="{{ machine.id }}">
+            {{ machine.code }} · {{ machine.location }}
+          </option>
+          {% empty %}
+          <option value="">No machines online</option>
+          {% endfor %}
+        </select>
+        <p class="machine-ready">
+          <span class="status-dot"></span> Ready for a new session
+        </p>
+        <label for="rfid">RFID card UID</label>
+        <input
+          id="rfid"
+          class="field"
+          value="{{ profile.rfid_uid|default:'' }}"
+          readonly
+        />
+        <button class="btn" type="button" onclick="scanCard()">
+          Verify RFID card
+        </button>
+        <p id="result" class="form-result" role="status"></p>
+      </section>
+      <aside class="how-panel">
+        <h2>How it works</h2>
+        <ol class="process-list">
+          <li><b>Tap card</b><span>We verify your registered RFID.</span></li>
+          <li>
+            <b>Place paper</b><span>The load cell measures your deposit.</span>
+          </li>
+          <li>
+            <b>Earn points</b><span>Accepted paper moves to the bin.</span>
+          </li>
+        </ol>
+      </aside>
+    </main>
+  </div>
+</div>
+<script>
+  async function scanCard() {
+    const result = document.querySelector("#result");
+    const machine = document.querySelector("#machine").value;
+    result.textContent = "Verifying your registered RFID...";
+    const response = await fetch('{% url "api_start_recycling" %}', {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+      body: JSON.stringify({
+        machine_id: machine,
+      }),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      result.textContent = "✕ " + data.error;
+      return;
+    }
+    window.location.href = '{% url "session_progress" "SESSION_ID" %}'.replace(
+      "SESSION_ID",
+      data.session_id,
+    );
+  }
+</script>
+{% endblock %}

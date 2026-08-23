@@ -1,0 +1,46 @@
+{% extends 'admin/base.html' %}
+{% block admin_content %}
+<a class="back-link" href="{% url 'admin_rewards_page' %}">← Rewards</a>
+<div class="page-heading">
+	<div>
+		<p class="eyebrow">REWARD CATALOG</p>
+		<h1>{% if reward %}Edit reward{% else %}Create reward{% endif %}</h1>
+		<p>Manage the reward available in the EcoReward wallet.</p>
+	</div>
+</div>
+{% for message in messages %}
+<p class="pill">{{ message }}</p>
+{% endfor %}
+<form class="panel settings-card reward-form" method="post" enctype="multipart/form-data">
+	{% csrf_token %}
+	<label>Reward name<input class="field" name="name" required value="{{ reward.name|default:'' }}" placeholder="Eco-Friendly Notebook"></label>
+	<label>Description<textarea class="field" name="description" rows="4" placeholder="A useful reward for responsible recycling.">{{ reward.description|default:'' }}</textarea></label>
+	<div class="form-two">
+		<label>Category<input class="field" name="category" value="{{ reward.category|default:'Eco Products' }}" placeholder="Drinkware"></label>
+		<label>Upload product image<input class="field" name="image" type="file" accept="image/*" id="reward-image-upload"></label>
+	</div>
+	<div class="reward-image-preview">{% if reward.image %}<img id="reward-image-preview" src="{{ reward.image.url }}" alt="Current reward image">{% elif reward.image_url %}<img id="reward-image-preview" src="{{ reward.image_url }}" alt="Current reward image">{% else %}<span id="reward-image-preview">Select or upload an image to preview it</span>{% endif %}</div>
+	<div class="form-two">
+		<label>Points required<input class="field" name="points_required" type="number" min="1" value="{{ reward.points_required|default:500 }}" required></label>
+		<label>Quantity<input class="field" name="stock" type="number" min="0" value="{{ reward.stock|default:100 }}" required></label>
+	</div>
+	<label>Reward type<select class="field" name="reward_type"><option value="COUPON">Coupon</option><option value="QR">QR Code</option><option value="PHYSICAL">Physical reward</option></select></label>
+	<label class="toggle-row"><input name="active" type="checkbox" {% if not reward or reward.active %}checked{% endif %}> Enabled</label>
+	<button class="btn" type="submit">{% if reward %}Save changes{% else %}Create reward{% endif %}</button>
+</form>
+<script>
+const imageUpload = document.querySelector('#reward-image-upload');
+const imagePreview = document.querySelector('#reward-image-preview');
+imageUpload.addEventListener('change', () => {
+	const uploadedImage = imageUpload.files[0];
+	if (!uploadedImage) return;
+	if (imagePreview.tagName === 'SPAN') {
+		const previewImage = document.createElement('img');
+		previewImage.id = 'reward-image-preview';
+		previewImage.alt = 'Uploaded reward image';
+		imagePreview.replaceWith(previewImage);
+	}
+	document.querySelector('#reward-image-preview').src = URL.createObjectURL(uploadedImage);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="shell admin-shell">
+  <aside class="sidebar admin-sidebar">
+    <div>
+      <div class="brand"><span>🌿 EcoReward</span><small>Admin</small></div>
+      <nav class="nav admin-nav">
+        <a class="{% if admin_section == 'dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">🏠 Dashboard</a>
+        <a class="{% if admin_section == 'users' %}active{% endif %}" href="{% url 'admin_users_page' %}">👥 Users</a>
+        <a class="{% if admin_section == 'machines' %}active{% endif %}" href="{% url 'admin_machines_page' %}">🤖 Machines</a>
+        <a class="{% if admin_section == 'recycling' %}active{% endif %}" href="{% url 'admin_recycling_page' %}">♻️ Recycling</a>
+        <a class="{% if admin_section == 'rewards' %}active{% endif %}" href="{% url 'admin_rewards_page' %}">🎁 Rewards</a>
+        <a class="{% if admin_section == 'reports' %}active{% endif %}" href="{% url 'admin_reports_page' %}">📊 Reports</a>
+        <a class="{% if admin_section == 'settings' %}active{% endif %}" href="{% url 'admin_settings_page' %}">⚙️ Settings</a>
+      </nav>
+    </div>
+    <div class="admin-side-foot">
+      <a href="{% url 'admin_notifications_page' %}">🔔 Notifications</a>
+      <a href="{% url 'logout' %}">🚪 Logout</a>
+    </div>
+  </aside>
+  <div class="content">
+    <header class="topbar admin-topbar">
+      <div class="admin-page-title"><span class="eyebrow">ECOREWARD ADMIN</span><b>{{ page_title }}</b></div>
+      <div class="user"><a href="{% url 'admin_notifications_page' %}">🔔</a><span class="avatar">{{ request.user.username|first|upper }}</span><span>{{ request.user.get_full_name|default:request.user.username }}</span><span class="admin-date">{{ now|date:'d M Y' }}</span></div>
+    </header>
+    <main class="main admin-main">{% block admin_content %}{% endblock %}</main>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends 'base.html' %}{% block body %}
+<div class="shell">
+  <aside class="sidebar">
+    <div>
+      <div class="brand"><span>🌿 Eco</span>Reward</div>
+      <nav class="nav">
+        <a href="{% url 'dashboard' %}">⌂ &nbsp; Dashboard</a
+        ><a href="{% url 'recycle' %}">♻ &nbsp; Recycle Now</a
+        ><a href="{% url 'rewards' %}">🎁 &nbsp; Rewards</a
+        ><a class="active" href="{% url 'history' %}">◷ &nbsp; History</a
+        ><a href="{% url 'leaderboard' %}">♜ &nbsp; Leaderboard</a>
+      </nav>
+    </div>
+  </aside>
+  <div class="content">
+    <header class="topbar">
+      <b>Recycling History</b><a href="{% url 'logout' %}">Logout</a>
+    </header>
+    <main class="main">
+      <section class="panel">
+        <h1>Your deposits</h1>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Machine</th>
+              <th>Weight</th>
+              <th>Points</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for session in sessions %}
+            <tr>
+              <td>{{ session.created_at|date:'d M Y, h:i A' }}</td>
+              <td>{{ session.machine.code }}</td>
+              <td>{{ session.weight_grams }} g</td>
+              <td>+{{ session.points }}</td>
+              <td><span class="pill">{{ session.status }}</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5">No recycling sessions yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</div>
+{% endblock %}
