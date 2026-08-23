@@ -32,6 +32,90 @@ progress.bin-meter{width:100%;height:8px;border:0;border-radius:10px;background:
 @media(max-width:850px){.admin-dashboard-grid,.report-grid,.settings-grid,.detail-grid{grid-template-columns:1fr}.admin-stats-five{grid-template-columns:repeat(2,1fr)}.page-heading{display:block}.page-heading .btn{display:inline-block;margin-top:15px}.toolbar,.report-filter{flex-wrap:wrap}.machine-card-grid,.reward-page-grid{grid-template-columns:1fr}.alert-grid{grid-template-columns:1fr}.admin-date{display:none}.admin-topbar{padding:0 16px}.detail-stat-grid{gap:8px}}
 .profile-shortcut{display:flex;align-items:center;gap:10px}.profile-main{max-width:1080px}.profile-message{padding:11px 14px;border-radius:8px;background:var(--mint);color:var(--green);font-size:13px}.profile-header{text-align:center;padding:34px 20px;margin-bottom:18px}.profile-avatar{width:82px;height:82px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;background:var(--dark);color:#fff;font-size:30px;font-weight:800}.profile-header h1{margin:0 0 5px;font-size:26px}.profile-header p{margin:0 0 4px;color:var(--green);font-weight:700}.profile-header .btn{margin-top:19px}.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}.profile-card{padding:23px}.profile-card h2{margin:5px 0 18px;font-size:18px}.profile-details{display:grid;gap:14px}.profile-details div,.security-row{display:flex;justify-content:space-between;gap:18px;padding-bottom:12px;border-bottom:1px solid var(--line);font-size:13px}.profile-details span,.security-row span{color:var(--muted)}.profile-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.profile-stat-grid div{padding:13px;border-radius:8px;background:var(--bg)}.profile-stat-grid strong,.profile-stat-grid span{display:block}.profile-stat-grid strong{font-size:19px}.profile-stat-grid span{font-size:11px;color:var(--muted);margin-top:4px}.security-card{margin-bottom:18px}.section-heading{display:flex;justify-content:space-between;gap:18px;align-items:start}.security-row{padding:14px 0;align-items:center}.security-row .detail{margin-left:auto}.good{color:var(--green)}.rfid-user-card{display:grid;gap:11px;padding:18px;margin:10px 0 13px;border-radius:10px;background:linear-gradient(135deg,#173d34,#2e8b57);color:#fff}.rfid-user-card span{font-size:10px;letter-spacing:1px}.rfid-user-card strong{font-size:19px;letter-spacing:2px}.rfid-user-card small{font-size:12px}.danger{color:#bb4d43}.link-button.danger{margin-top:8px}.goal-number{display:flex;align-items:baseline;gap:5px}.goal-number strong{font-size:25px}.goal-number span{color:var(--muted);font-size:13px}.goal-meter{height:11px;margin:16px 0 9px;border-radius:10px;background:#edf1ef;overflow:hidden}.goal-meter span{display:block;height:100%;border-radius:inherit;background:var(--green)}.profile-achievements{display:grid;grid-template-columns:repeat(4,1fr)}.profile-achievements span{display:grid;gap:6px;text-align:center;font-size:25px}.profile-achievements b{font-size:11px}.profile-achievements small{color:var(--muted);font-size:10px}.preferences-card{margin-top:18px}.preference-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}.preference-list label{display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--bg);border-radius:8px;font-size:12px}.profile-logout{padding:24px 4px;text-align:right;border-top:1px solid var(--line)}.profile-dialog{width:min(430px,calc(100% - 30px));border:0;border-radius:12px;padding:25px;box-shadow:0 18px 55px #173d3440}.profile-dialog::backdrop{background:#102a2566}.profile-dialog h2{margin-top:0}.profile-dialog label{display:grid;gap:7px;margin:15px 0;font-size:12px;font-weight:700}.dialog-actions{display:flex;justify-content:end;gap:10px;margin-top:20px}
 @media(max-width:850px){.profile-grid{grid-template-columns:1fr}.profile-main{padding:16px}.profile-header{padding:27px 16px}.profile-achievements{grid-template-columns:repeat(2,1fr);gap:20px}.preference-list{grid-template-columns:1fr}.security-row{align-items:start;flex-wrap:wrap}.security-row .detail{width:100%;margin-left:0}.profile-dialog{padding:20px}}
+
+/* Responsive application shell */
+html,body{max-width:100%;overflow-x:hidden}
+@media(max-width:991px){
+  .shell{display:block;min-height:100vh}
+  .sidebar{display:block;width:100%;height:auto;padding:12px 14px;border-right:0;border-bottom:1px solid var(--line);position:relative;z-index:5}
+  .sidebar>div:first-child{display:flex;align-items:center;gap:12px;min-width:0}
+  .sidebar .brand{padding:4px 0;font-size:18px;white-space:nowrap}
+  .sidebar .nav{display:flex;gap:4px;overflow-x:auto;min-width:0;scrollbar-width:none}
+  .sidebar .nav::-webkit-scrollbar{display:none}
+  .sidebar .nav a{padding:9px 10px;font-size:12px;white-space:nowrap}
+  .sidebar .sidebar-footer,.sidebar .admin-side-foot{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sidebar .sidebar-footer .promo{display:none}
+  .sidebar .sidebar-footer .logout-button{margin-top:0;padding:8px 10px;font-size:12px}
+  .sidebar .admin-side-foot a{padding:8px 0;font-size:12px}
+  .content{width:100%;min-width:0}
+  .topbar{height:auto;min-height:60px;padding:12px 16px;gap:12px}
+  .topnav{gap:16px;overflow-x:auto;scrollbar-width:none}
+  .topnav::-webkit-scrollbar{display:none}
+  .topnav a{font-size:13px}
+  .main{width:100%;max-width:none;padding:20px 16px 24px}
+  .admin-main{padding:20px 16px 24px}
+  .page-heading,.admin-welcome{gap:14px}
+  .page-heading h1,.admin-welcome h1{font-size:24px}
+  .page-heading .btn,.admin-welcome .btn{max-width:100%;white-space:normal}
+  .stats,.admin-stats,.report-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .stat{min-width:0;padding:13px}
+  .stat strong{font-size:19px;overflow-wrap:anywhere}
+  .card,.panel{max-width:100%;min-width:0}
+  .hero{min-height:0;padding:20px;gap:14px}
+  .hero h1{font-size:20px}
+  .earth{width:110px;height:82px}
+  .grid,.admin-grid,.admin-grid-wide,.admin-dashboard-grid,.settings-grid,.detail-grid,.profile-grid{grid-template-columns:1fr}
+  .toolbar,.report-filter,.reward-toolbar{width:100%;flex-wrap:wrap;gap:10px}
+  .toolbar .field,.report-filter .field{max-width:none;flex:1 1 180px}
+  .table{min-width:620px}
+  .table th,.table td{white-space:nowrap}
+  .panel:has(>.table),.panel:has(.admin-table-wrap){overflow-x:auto}
+  .form{width:100%;max-width:460px;margin:30px auto;padding:24px}
+  .btn{max-width:100%;white-space:normal}
+  .recycle-layout,.progress-layout{max-width:none}
+  .recycle-panel,.progress-card{padding:20px}
+  .rewards-hero{grid-template-columns:58px 1fr;gap:12px;padding:20px}
+  .reward-market-grid,.reward-page-grid,.machine-card-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .reward-controls{min-width:0;width:100%;flex-wrap:wrap}
+  .reward-controls .field{min-width:0;flex:1 1 140px}
+  .reward-dialog,.profile-dialog{max-width:calc(100vw - 30px);max-height:calc(100vh - 30px);overflow:auto}
+  .report-chart-wrap{max-width:100%;overflow-x:auto}
+}
+@media(max-width:575px){
+  .sidebar>div:first-child{display:block}
+  .sidebar .brand{margin-bottom:7px}
+  .sidebar .nav a{padding:8px 9px}
+  .topbar{align-items:flex-start;flex-wrap:wrap}
+  .topbar .user{margin-left:auto;max-width:100%;overflow:hidden}
+  .topnav{order:2;width:100%;height:34px}
+  .main,.admin-main{padding:16px 12px 22px}
+  .stats,.admin-stats,.report-grid,.reward-market-grid,.reward-page-grid,.machine-card-grid{grid-template-columns:1fr}
+  .hero{display:block;padding:18px}
+  .earth{display:none}
+  .panel{padding:14px}
+  .page-heading,.admin-welcome{display:block}
+  .page-heading .btn,.admin-welcome .btn{display:inline-block;margin-top:14px}
+  .profile-header{padding:24px 14px}
+  .result-metrics{grid-template-columns:1fr;gap:0;padding:0}
+  .result-metrics div{padding:13px;border-right:0;border-bottom:1px solid var(--line)}
+  .result-metrics div:last-child{border-bottom:0}
+  .stepper{gap:2px;margin:22px 0}
+  .stepper div{font-size:9px;overflow-wrap:anywhere}
+  .stepper span{width:26px;height:26px}
+  .report-chart .report-summary{font-size:10px}
+  .report-chart .report-chart-controls .field{width:100%}
+  .report-chart-plot{min-width:900px}
+  .rewards-hero{display:block;padding:16px}
+  .rewards-balance{margin:14px 0;border:0}
+  .rewards-hero-copy{margin-top:14px}
+  .rewards-how>div{grid-template-columns:44px 1fr;gap:10px}
+  .rewards-how i{display:none}
+  .reward-toolbar{padding:10px}
+  .reward-categories{width:100%}
+  .report-chart-heading{display:block}
+  .report-chart-controls{margin-top:12px;width:100%}
+  .report-chart-controls .field{width:100%;min-width:0}
+}
 /* =========================================================
    REPORT CHART
    ========================================================= */

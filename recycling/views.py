@@ -147,7 +147,7 @@ def reward_purchase_history(request):
 
 @login_required
 def leaderboard(request):
-    return render(request, "user/leaderboard.html", {"users": Profile.objects.select_related("user").order_by("-points")[:10]})
+    return render(request, "user/leaderboard.html", {"users": Profile.objects.filter(role="USER").select_related("user").order_by("-points")[:10]})
 
 
 @login_required
@@ -885,7 +885,7 @@ def read_notification(request, notification_id):
 
 @login_required
 def api_leaderboard(request):
-    users = Profile.objects.filter(status="ACTIVE").select_related("user").order_by("-points")[:20]
+    users = Profile.objects.filter(status="ACTIVE", role="USER").select_related("user").order_by("-points")[:20]
     return JsonResponse({"leaderboard": [{"rank": index, "name": profile.user.get_full_name() or profile.user.username, "points": profile.points} for index, profile in enumerate(users, 1)]})
 
 
