@@ -137,6 +137,23 @@ class RFIDMachineFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(RecyclingPointConfig.objects.get(active=True).grams_per_point, 5)
 
+    def test_admin_dashboard_points_and_users_exclude_admin_profile(self):
+        admin = User.objects.create_user(username="dashboard-admin@example.com")
+        Profile.objects.create(user=admin, role="ADMIN", points=156)
+        user = User.objects.create_user(username="dashboard-user@example.com")
+        Profile.objects.create(user=user, role="USER", points=99)
+        RecyclingSession.objects.create(user=user, machine=self.machine, rfid_uid="DASHBOARD", status="COMPLETED", points=164)
+        RecyclingSession.objects.create(user=user, machine=self.machine, rfid_uid="DASHBOARD", status="PROCESSING", points=20)
+        self.client.force_login(admin)
+
+        dashboard_response = self.client.get("/admin-dashboard/")
+        users_response = self.client.get("/admin-panel/users/")
+
+        self.assertEqual(dashboard_response.context["points"], 99)
+        self.assertEqual(dashboard_response.context["users"], 1)
+        self.assertEqual(len(users_response.context["users_list"]), 1)
+        self.assertEqual(users_response.context["users_list"][0].user_id, user.id)
+
     def test_admin_report_chart_has_real_distinct_month_values_and_zero_days(self):
         admin = User.objects.create_user(username="chart-admin@example.com")
         Profile.objects.create(user=admin, role="ADMIN")

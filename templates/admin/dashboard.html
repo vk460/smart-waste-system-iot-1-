@@ -5,7 +5,7 @@
   <a class="card stat" href="{% url 'admin_users_page' %}"><div class="kpi"><div class="icon blue">👥</div><div><strong>{{ users }}</strong><span class="muted">Total users</span></div></div><small class="stat-note">{{ active_users }} active · {{ blocked_users }} blocked</small></a>
   <a class="card stat" href="{% url 'admin_recycling_page' %}"><div class="kpi"><div class="icon green">♻</div><div><strong>{{ paper_kg|floatformat:1 }} kg</strong><span class="muted">Paper collected</span></div></div><small class="stat-note">Network total</small></a>
   <a class="card stat" href="{% url 'admin_recycling_page' %}"><div class="kpi"><div class="icon orange">📦</div><div><strong>{{ deposits }}</strong><span class="muted">Total deposits</span></div></div><small class="stat-note">Completed sessions</small></a>
-  <a class="card stat" href="{% url 'admin_rewards_page' %}"><div class="kpi"><div class="icon">⭐</div><div><strong>{{ points }}</strong><span class="muted">Points issued</span></div></div><small class="stat-note">{{ reward_purchases }} purchases · {{ reward_points_redeemed }} redeemed</small></a>
+  <a class="card stat" href="{% url 'admin_users_page' %}"><div class="kpi"><div class="icon">⭐</div><div><strong>{{ points }}</strong><span class="muted">Current user points</span></div></div><small class="stat-note">Combined user balances</small></a>
   <a class="card stat" href="{% url 'admin_machines_page' %}"><div class="kpi"><div class="icon blue">🤖</div><div><strong>{{ online_machines }}/{{ machines|length }}</strong><span class="muted">Machines online</span></div></div><small class="stat-note">{{ machines|length }} total machines</small></a>
 </section>
 <div class="admin-dashboard-grid">

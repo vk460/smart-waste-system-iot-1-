@@ -263,13 +263,13 @@ def admin_dashboard(request):
     activity_points = " ".join(f"{offset * 116.67:.2f},{170 - (float(weight) / float(weekly_max) * 140 if weekly_max else 0):.2f}" for offset, weight in enumerate(weekly_weights))
     weekly_chart = [{"label": (week_start + timedelta(days=offset)).strftime("%a"), "kg": Decimal(weight) / 1000} for offset, weight in enumerate(weekly_weights)]
     return render(request, "admin/dashboard.html", {
-        "users": User.objects.count(),
+        "users": Profile.objects.filter(role="USER").count(),
         "active_users": Profile.objects.filter(status="ACTIVE", role="USER").count(),
         "blocked_users": Profile.objects.filter(status="BLOCKED").count(),
         "paper": sessions.filter(status="COMPLETED").aggregate(value=Sum("weight_grams"))["value"] or 0,
         "paper_kg": Decimal(sessions.filter(status="COMPLETED").aggregate(value=Sum("weight_grams"))["value"] or 0) / 1000,
         "deposits": sessions.filter(status="COMPLETED").count(),
-        "points": sessions.aggregate(value=Sum("points"))["value"] or 0,
+        "points": Profile.objects.filter(role="USER").aggregate(value=Sum("points"))["value"] or 0,
         "machines": Machine.objects.all().order_by("code"),
         "online_machines": Machine.objects.filter(status="ONLINE").count(),
         "sessions": sessions[:8],
@@ -296,7 +296,7 @@ def admin_users_page(request):
         return redirect("dashboard")
     search = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
-    users = Profile.objects.select_related("user")
+    users = Profile.objects.select_related("user").filter(role="USER")
     if search:
         users = users.filter(user__username__icontains=search) | Profile.objects.select_related("user").filter(user__email__icontains=search)
     if status in {"ACTIVE", "BLOCKED"}:
